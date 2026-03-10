@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
-import { BookOpen, FolderGit2, LayoutGrid } from 'lucide-vue-next';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -16,6 +14,8 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
+import { Link } from '@inertiajs/vue3';
+import { BookOpen, FolderGit2, LayoutGrid } from 'lucide-vue-next';
 
 const mainNavItems: NavItem[] = [
     {
@@ -28,12 +28,12 @@ const mainNavItems: NavItem[] = [
 const footerNavItems: NavItem[] = [
     {
         title: 'Repository',
-        href: 'https://github.com/laravel/vue-starter-kit',
+        href: 'https://github.com/nicolaskion/eve-starter-kit',
         icon: FolderGit2,
     },
     {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#vue',
+        title: 'ESI Documentation',
+        href: 'https://esi.evetech.net/ui/',
         icon: BookOpen,
     },
 ];

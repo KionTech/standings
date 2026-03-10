@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import { Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Menu, Search } from 'lucide-vue-next';
-import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
@@ -37,6 +34,9 @@ import { getInitials } from '@/composables/useInitials';
 import { toUrl } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem, NavItem } from '@/types';
+import { Link, usePage } from '@inertiajs/vue3';
+import { BookOpen, Folder, LayoutGrid, Menu, Search } from 'lucide-vue-next';
+import { computed } from 'vue';
 
 type Props = {
     breadcrumbs?: BreadcrumbItem[];
@@ -64,12 +64,12 @@ const mainNavItems: NavItem[] = [
 const rightNavItems: NavItem[] = [
     {
         title: 'Repository',
-        href: 'https://github.com/laravel/vue-starter-kit',
+        href: 'https://github.com/nicolaskion/eve-starter-kit',
         icon: Folder,
     },
     {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#vue',
+        title: 'ESI Documentation',
+        href: 'https://esi.evetech.net/ui/',
         icon: BookOpen,
     },
 ];
@@ -249,20 +249,23 @@ const rightNavItems: NavItem[] = [
                                     class="size-8 overflow-hidden rounded-full"
                                 >
                                     <AvatarImage
-                                        v-if="auth.user.avatar"
-                                        :src="auth.user.avatar"
-                                        :alt="auth.user.name"
+                                        :src="`https://images.evetech.net/characters/${auth.active_character.id}/portrait?size=64`"
+                                        :alt="auth.active_character.name"
                                     />
                                     <AvatarFallback
                                         class="rounded-lg bg-neutral-200 font-semibold text-black dark:bg-neutral-700 dark:text-white"
                                     >
-                                        {{ getInitials(auth.user?.name) }}
+                                        {{
+                                            getInitials(
+                                                auth.active_character?.name,
+                                            )
+                                        }}
                                     </AvatarFallback>
                                 </Avatar>
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" class="w-56">
-                            <UserMenuContent :user="auth.user" />
+                            <UserMenuContent />
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
