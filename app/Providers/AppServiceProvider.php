@@ -1,12 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Validation\Rules\Password;
+use SocialiteProviders\Eveonline\Provider;
+use SocialiteProviders\Manager\SocialiteWasCalled;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,6 +29,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureSocialite();
     }
 
     /**
@@ -31,20 +37,22 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureDefaults(): void
     {
+        Model::unguard();
+
         Date::use(CarbonImmutable::class);
 
         DB::prohibitDestructiveCommands(
             app()->isProduction(),
         );
+    }
 
-        Password::defaults(fn (): ?Password => app()->isProduction()
-            ? Password::min(12)
-                ->mixedCase()
-                ->letters()
-                ->numbers()
-                ->symbols()
-                ->uncompromised()
-            : null,
-        );
+    /**
+     * Register Socialite providers for EVE Online SSO.
+     */
+    protected function configureSocialite(): void
+    {
+        Event::listen(function (SocialiteWasCalled $event): void {
+            $event->extendSocialite('eveonline', Provider::class);
+        });
     }
 }

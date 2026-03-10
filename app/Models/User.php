@@ -1,52 +1,97 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Fortify\TwoFactorAuthenticatable;
+use Illuminate\Support\Facades\Session;
+use InvalidArgumentException;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $remember_token
+ * @property CarbonImmutable $created_at
+ * @property CarbonImmutable $updated_at
+ * @property-read EloquentCollection<int, Character> $characters
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable;
+    use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-    ];
+    public const string SESSION_ACTIVE_CHARACTER_ID = 'active_character_id';
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
-        'password',
-        'two_factor_secret',
-        'two_factor_recovery_codes',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
+    public function getAuthPassword(): string
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'two_factor_confirmed_at' => 'datetime',
-        ];
+        return '';
+    }
+
+    /**
+     * @return HasMany<Character, $this>
+     */
+    public function characters(): HasMany
+    {
+        return $this->hasMany(Character::class);
+    }
+
+    public function getActiveCharacter(): Character
+    {
+        $active_character_id = Session::get(self::SESSION_ACTIVE_CHARACTER_ID);
+
+        if ($active_character_id !== null && $character = $this->characters->find($active_character_id)) {
+            return $character;
+        }
+
+        $character = $this->characters->first();
+
+        if (! $character) {
+            auth()->logout();
+            abort(403, 'No characters found. Please log in again.');
+        }
+
+        Session::put(self::SESSION_ACTIVE_CHARACTER_ID, $character->id);
+
+        return $character;
+    }
+
+    /**
+     * @throws InvalidArgumentException
+     */
+    public function setActiveCharacter(int|Character|null $character): ?Character
+    {
+        if ($character === null) {
+            Session::forget(self::SESSION_ACTIVE_CHARACTER_ID);
+
+            return null;
+        }
+
+        $active_character = $character instanceof Character ? $character : $this->characters()->find($character);
+
+        if (! $active_character) {
+            throw new InvalidArgumentException('Character does not belong to this user!');
+        }
+
+        Session::put(self::SESSION_ACTIVE_CHARACTER_ID, $active_character->id);
+
+        return $active_character;
+    }
+
+    /**
+     * @return array<int>
+     */
+    public function getCharacterIds(): array
+    {
+        return once(fn () => $this->characters->pluck('id')->toArray());
     }
 }

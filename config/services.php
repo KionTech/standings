@@ -1,5 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
+use NicolasKion\Esi\Enums\EsiScope;
+
 return [
 
     /*
@@ -32,6 +36,15 @@ return [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
+        ],
+    ],
+
+    'eveonline' => [
+        'client_id' => env('EVEONLINE_CLIENT_ID'),
+        'client_secret' => env('EVEONLINE_CLIENT_SECRET'),
+        'redirect' => env('EVEONLINE_REDIRECT_URI'),
+        'required_scopes' => [
+            EsiScope::PublicData,
         ],
     ],
 
