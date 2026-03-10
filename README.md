@@ -24,9 +24,9 @@ Together, they give you static game data, authenticated API access, and a ready-
 ## Requirements
 
 - PHP 8.4+
+- MySQL 8.0+
 - Node.js 20+
 - Composer
-- A database (SQLite works out of the box)
 - An [EVE Online Developer Application](https://developers.eveonline.com/) for SSO credentials
 
 ## Installation
@@ -39,22 +39,75 @@ composer setup
 
 The `setup` script installs dependencies, creates your `.env`, generates an app key, runs migrations, and builds frontend assets.
 
-Then configure your EVE Online SSO credentials in `.env`:
+### EVE SSO Credentials
+
+Register your application at the [EVE Online Developers Portal](https://developers.eveonline.com/) and add the credentials to your `.env`:
 
 ```env
 EVEONLINE_CLIENT_ID=your-client-id
 EVEONLINE_CLIENT_SECRET=your-client-secret
-EVEONLINE_REDIRECT=https://your-app.test/auth/eveonline/callback
+EVEONLINE_REDIRECT_URI="${APP_URL}/eve/callback"
 ```
+
+### Database
+
+Configure your MySQL connection in `.env`:
+
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=eve_starter_kit
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+Then seed the database:
+
+```bash
+php artisan db:seed
+```
+
+This will:
+1. Seed ESI scope definitions
+2. Download the latest SDE data from CCP
+3. Import all SDE tables (types, regions, solar systems, corporations, effects, etc.)
+
+The initial seed may take a few minutes depending on your connection and database speed.
 
 ## Development
 
 ```bash
-# Start the dev server (requires Laravel Herd or Valet, or use php artisan serve)
 composer run dev
 ```
 
-This runs the Vite dev server for hot module replacement alongside your Laravel application.
+This starts the web server, queue worker, log viewer, and Vite dev server concurrently.
+
+## SDE (Static Data Export)
+
+The SDE contains EVE Online's static game data -- types, regions, solar systems, corporations, factions, and more.
+
+### Updating SDE Data
+
+When CCP releases a new SDE version (typically after game patches):
+
+```bash
+php artisan sde:download
+php artisan sde:seed
+```
+
+The seeder uses upserts, so it's safe to re-run without clearing existing data.
+
+### Individual Seeders
+
+You can seed specific SDE tables individually:
+
+```bash
+php artisan sde:seed:types
+php artisan sde:seed:effects
+php artisan sde:seed:regions
+php artisan sde:seed:social
+```
 
 ## Testing
 
