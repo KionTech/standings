@@ -1,11 +1,13 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/vue-starter-kit",
+    "name": "kiontech/standings",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "Automatically sync EVE Online standings from a single source onto every registered character.",
     "keywords": [
         "laravel",
-        "framework"
+        "eve-online",
+        "standings",
+        "esi"
     ],
     "license": "MIT",
     "require": {

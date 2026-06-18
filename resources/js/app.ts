@@ -2,7 +2,7 @@ import { initializeTheme } from '@/composables/useAppearance';
 import { createInertiaApp } from '@inertiajs/vue3';
 import '../css/app.css';
 
-const appName = import.meta.env.VITE_APP_NAME || 'EVE Starter Kit';
+const appName = import.meta.env.VITE_APP_NAME || 'Standings';
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),

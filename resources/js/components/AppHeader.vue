@@ -64,7 +64,7 @@ const mainNavItems: NavItem[] = [
 const rightNavItems: NavItem[] = [
     {
         title: 'Repository',
-        href: 'https://github.com/nicolaskion/eve-starter-kit',
+        href: 'https://github.com/KionTech/standings',
         icon: Folder,
     },
     {

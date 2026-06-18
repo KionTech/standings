@@ -28,7 +28,7 @@ const mainNavItems: NavItem[] = [
 const footerNavItems: NavItem[] = [
     {
         title: 'Repository',
-        href: 'https://github.com/nicolaskion/eve-starter-kit',
+        href: 'https://github.com/KionTech/standings',
         icon: FolderGit2,
     },
     {

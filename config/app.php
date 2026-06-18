@@ -15,7 +15,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'EVE Starter Kit'),
+    'name' => env('APP_NAME', 'Standings'),
 
     /*
     |--------------------------------------------------------------------------
