@@ -26,7 +26,7 @@ import { login, logout } from '@/routes';
 import { edit as editAppearance } from '@/routes/appearance';
 import type { Character } from '@/types';
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { LogOut, Minus, Plus, Settings } from 'lucide-vue-next';
+import { LogOut, Minus, Plus, Settings } from '@lucide/vue';
 import { computed, ref } from 'vue';
 
 const page = usePage();
