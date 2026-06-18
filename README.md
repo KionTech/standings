@@ -1,25 +1,29 @@
-# EVE Starter Kit
+# Standings
 
-A Laravel starter kit for building third-party EVE Online applications. Built on Laravel 12, Vue 3, and Inertia v2 with a modern, production-ready foundation.
+Automatically sync EVE Online standings from a single source onto every registered character. Define your standings once on a source entity, and every character that authorizes the app has their in-game contacts kept in sync. Built on Laravel 13, Vue 3, and Inertia v3.
+
+## How It Works
+
+- A **source** (a character, corporation, or alliance) defines the canonical set of standings.
+- Pilots log in with EVE Online SSO and register their **characters**, granting the `write_contacts` scope.
+- The app mirrors the source's standings onto each registered character's in-game contact list and keeps them in sync.
+
+> **ESI constraint:** EVE's ESI only exposes a **write** endpoint for *character* contacts. Corporation and alliance contact lists are **read-only** over the API (they can only be edited in-game by directors/diplomats). So corporations and alliances can register and have standings applied — but the sync writes to their **member characters individually**, never to the corp/alliance contact list itself. Corp/alliance contacts are still readable and can be used as a standings **source**.
 
 ## What It Provides
 
-- **EVE Online SSO** -- Login exclusively through EVE Online's OAuth flow using [Socialite](https://laravel.com/docs/socialite) with the [EVE Online adapter](https://github.com/nullx27/eve-online-sso)
+- **EVE Online SSO** -- Login through EVE Online's OAuth flow using [Socialite](https://laravel.com/docs/socialite) with the [EVE Online adapter](https://github.com/nullx27/eve-online-sso)
 - **Character Management** -- Add, switch, and manage multiple EVE Online characters per account
-- **Modern Frontend** -- Vue 3 SPA with Inertia v2, Tailwind CSS v4, and a full component library (Reka UI)
+- **Modern Frontend** -- Vue 3 SPA with Inertia v3, Tailwind CSS v4, and a full component library (Reka UI)
 - **Type-Safe Routing** -- [Laravel Wayfinder](https://github.com/laravel/wayfinder) generates TypeScript functions for all your Laravel routes
-- **Test Suite** -- Comprehensive Pest 4 tests covering authentication and more
+- **Test Suite** -- Comprehensive Pest 4 tests
 
 ## Companion Packages
-
-This starter kit is designed to work with:
 
 | Package | Description |
 |---|---|
 | [nicolaskion/sde](https://github.com/nicolaskion/sde) | EVE Online Static Data Export -- ships, items, regions, systems, and more as Eloquent models |
 | [nicolaskion/eve](https://github.com/nicolaskion/eve) | EVE API integration -- a clean Laravel package for the ESI (EVE Swagger Interface) |
-
-Together, they give you static game data, authenticated API access, and a ready-to-use application shell so you can focus on building your EVE tool.
 
 ## Requirements
 
@@ -32,8 +36,8 @@ Together, they give you static game data, authenticated API access, and a ready-
 ## Installation
 
 ```bash
-composer create-project nicolaskion/eve-starter-kit
-cd eve-starter-kit
+git clone https://github.com/KionTech/standings.git
+cd standings
 composer setup
 ```
 
@@ -41,13 +45,15 @@ The `setup` script installs dependencies, creates your `.env`, generates an app 
 
 ### EVE SSO Credentials
 
-Register your application at the [EVE Online Developers Portal](https://developers.eveonline.com/) and add the credentials to your `.env`:
+Register your application at the [EVE Online Developers Portal](https://developers.eveonline.com/) and add the credentials to your `.env`. The app requires the contacts scopes to read sources and write character standings:
 
 ```env
 EVEONLINE_CLIENT_ID=your-client-id
 EVEONLINE_CLIENT_SECRET=your-client-secret
 EVEONLINE_REDIRECT_URI="${APP_URL}/eve/callback"
 ```
+
+Required ESI scopes: `esi-characters.read_contacts.v1`, `esi-characters.write_contacts.v1`, and optionally `esi-corporations.read_contacts.v1` / `esi-alliances.read_contacts.v1` for corp/alliance sources.
 
 ### Database
 
@@ -57,7 +63,7 @@ Configure your MySQL connection in `.env`:
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=eve_starter_kit
+DB_DATABASE=standings
 DB_USERNAME=root
 DB_PASSWORD=
 ```
@@ -100,8 +106,6 @@ The seeder uses upserts, so it's safe to re-run without clearing existing data.
 
 ### Individual Seeders
 
-You can seed specific SDE tables individually:
-
 ```bash
 php artisan sde:seed:types
 php artisan sde:seed:effects
@@ -119,8 +123,8 @@ php artisan test --compact
 
 | Layer | Technology |
 |---|---|
-| Backend | Laravel 12, PHP 8.4 |
-| Frontend | Vue 3, Inertia v2, TypeScript |
+| Backend | Laravel 13, PHP 8.4 |
+| Frontend | Vue 3, Inertia v3, TypeScript |
 | Styling | Tailwind CSS v4 |
 | Components | Reka UI (headless), Lucide icons |
 | Auth | Socialite (EVE Online SSO) |
@@ -129,7 +133,7 @@ php artisan test --compact
 
 ## License
 
-The EVE Starter Kit is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Standings is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
 
 ---
 
