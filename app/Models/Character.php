@@ -29,9 +29,11 @@ use NicolasKion\Esi\Interfaces\EsiToken as EsiTokenInterface;
  * @property string|null $title
  * @property int|null $user_id
  * @property string|null $character_owner_hash
+ * @property bool $should_sync
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $updated_at
  * @property-read EloquentCollection<int, EsiToken> $esiTokens
+ * @property-read EloquentCollection<int, CharacterSyncedContact> $syncedContacts
  * @property-read User|null $user
  */
 class Character extends Model implements \NicolasKion\Esi\Interfaces\Character
@@ -73,6 +75,25 @@ class Character extends Model implements \NicolasKion\Esi\Interfaces\Character
     public function esiTokens(): HasMany
     {
         return $this->hasMany(EsiToken::class, 'character_id');
+    }
+
+    /**
+     * @return HasMany<CharacterSyncedContact, $this>
+     */
+    public function syncedContacts(): HasMany
+    {
+        return $this->hasMany(CharacterSyncedContact::class, 'character_id');
+    }
+
+    /**
+     * Characters that have opted in to standings syncing and can be written to.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<Character>  $query
+     */
+    public function scopeSyncable(\Illuminate\Database\Eloquent\Builder $query): void
+    {
+        $query->where('should_sync', true)
+            ->whereHas('esiTokens.esiScopes', static fn ($q) => $q->where('name', EsiScope::WriteCharacterContacts));
     }
 
     /**
@@ -131,5 +152,15 @@ class Character extends Model implements \NicolasKion\Esi\Interfaces\Character
     public function getCorporationId(): int
     {
         return $this->corporation_id;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'should_sync' => 'boolean',
+        ];
     }
 }

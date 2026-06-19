@@ -94,4 +94,14 @@ class User extends Authenticatable
     {
         return once(fn () => $this->characters->pluck('id')->toArray());
     }
+
+    /**
+     * Whether this user owns one of the configured admin characters.
+     */
+    public function isStandingsAdmin(): bool
+    {
+        $admin_character_ids = config('services.eveonline.admin_character_ids', []);
+
+        return array_intersect($admin_character_ids, $this->getCharacterIds()) !== [];
+    }
 }

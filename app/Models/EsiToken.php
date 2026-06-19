@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -25,6 +26,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  */
 class EsiToken extends Model implements \NicolasKion\Esi\Interfaces\EsiToken
 {
+    /** @use HasFactory<\Database\Factories\EsiTokenFactory> */
+    use HasFactory;
+
     /**
      * @return BelongsTo<Character, $this>
      */
