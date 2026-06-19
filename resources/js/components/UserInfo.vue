@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useInitials } from '@/composables/useInitials';
+import { characterPortrait } from '@/lib/eve';
 import type { Character } from '@/types';
 import { computed } from 'vue';
 
@@ -12,10 +13,7 @@ const props = defineProps<Props>();
 
 const { getInitials } = useInitials();
 
-const portraitUrl = computed(
-    () =>
-        `https://images.evetech.net/characters/${props.character.id}/portrait?size=64`,
-);
+const portraitUrl = computed(() => characterPortrait(props.character.id));
 </script>
 
 <template>

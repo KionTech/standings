@@ -31,6 +31,7 @@ import {
 import UserMenuContent from '@/components/UserMenuContent.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { getInitials } from '@/composables/useInitials';
+import { characterPortrait } from '@/lib/eve';
 import { toUrl } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem, NavItem } from '@/types';
@@ -249,7 +250,11 @@ const rightNavItems: NavItem[] = [
                                     class="size-8 overflow-hidden rounded-full"
                                 >
                                     <AvatarImage
-                                        :src="`https://images.evetech.net/characters/${auth.active_character.id}/portrait?size=64`"
+                                        :src="
+                                            characterPortrait(
+                                                auth.active_character.id,
+                                            )
+                                        "
                                         :alt="auth.active_character.name"
                                     />
                                     <AvatarFallback

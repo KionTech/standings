@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AccessWarnings from '@/components/AccessWarnings.vue';
+import Toaster from '@/components/Toaster.vue';
 import AppLayout from '@/layouts/app/AppSidebarLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 
@@ -13,6 +15,8 @@ withDefaults(defineProps<Props>(), {
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
+        <AccessWarnings />
         <slot />
     </AppLayout>
+    <Toaster />
 </template>

@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import UserInfo from '@/components/UserInfo.vue';
 import { useInitials } from '@/composables/useInitials';
+import { characterPortrait } from '@/lib/eve';
 import { login, logout } from '@/routes';
 import { edit as editAppearance } from '@/routes/appearance';
 import type { Character } from '@/types';
@@ -41,10 +42,6 @@ const otherCharacters = computed(() =>
 );
 
 const isLastCharacter = computed(() => auth.value.characters.length <= 1);
-
-function portraitUrl(characterId: number): string {
-    return `https://images.evetech.net/characters/${characterId}/portrait?size=64`;
-}
 
 function switchCharacter(character: Character) {
     router.put(
@@ -91,7 +88,7 @@ const handleLogout = () => {
             >
                 <Avatar class="mr-2 h-5 w-5 overflow-hidden rounded">
                     <AvatarImage
-                        :src="portraitUrl(character.id)"
+                        :src="characterPortrait(character.id)"
                         :alt="character.name"
                     />
                     <AvatarFallback class="rounded text-[10px]">

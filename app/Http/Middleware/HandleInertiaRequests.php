@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Http\Resources\CharacterResource;
+use App\Models\StandingsSource;
 use App\Models\User;
+use App\Services\StandingsSourceService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
+use NicolasKion\Esi\Enums\EsiScope;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -44,28 +48,47 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
-            'auth' => fn () => $user ? [
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                ],
-                'active_character' => $this->formatCharacter($user->getActiveCharacter()),
-                'characters' => $user->characters->map(fn ($character) => $this->formatCharacter($character))->values()->all(),
-            ] : ['user' => null],
+            'auth' => function () use ($user) {
+                if (! $user) {
+                    return ['user' => null];
+                }
+
+                $user->loadMissing(['characters.corporation:id,name,ticker', 'characters.alliance:id,name,ticker']);
+
+                $isAdmin = $user->isStandingsAdmin();
+
+                return [
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                    ],
+                    'is_admin' => $isAdmin,
+                    'source_unreadable' => $isAdmin && $this->sourceUnreadable(),
+                    'reauth_characters' => $user->characters()
+                        ->whereDoesntHave('esiTokens.esiScopes', fn ($query) => $query->where('name', EsiScope::WriteCharacterContacts))
+                        ->get(['id', 'name'])
+                        ->map(fn ($character): array => ['id' => $character->id, 'name' => $character->name])
+                        ->all(),
+                    'active_character' => (new CharacterResource($user->getActiveCharacter()))->resolve(),
+                    'characters' => CharacterResource::collection($user->characters)->resolve(),
+                ];
+            },
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'flash' => [
+                'success' => $request->session()->get('success'),
+                'error' => $request->session()->get('error'),
+                'info' => $request->session()->get('info'),
+            ],
         ];
     }
 
     /**
-     * @return array{id: int, name: string|null, corporation_id: int|null, alliance_id: int|null}
+     * Whether a source is configured but no admin character can currently read it.
      */
-    private function formatCharacter(\App\Models\Character $character): array
+    private function sourceUnreadable(): bool
     {
-        return [
-            'id' => $character->id,
-            'name' => $character->name,
-            'corporation_id' => $character->corporation_id,
-            'alliance_id' => $character->alliance_id,
-        ];
+        $source = StandingsSource::current();
+
+        return $source instanceof StandingsSource && app(StandingsSourceService::class)->reader($source) === null;
     }
 }
