@@ -15,7 +15,7 @@ declare(strict_types=1);
 
 pest()->extend(Tests\TestCase::class)
     ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
-    ->in('Feature');
+    ->in('Feature', 'Browser');
 
 /*
 |--------------------------------------------------------------------------
@@ -43,7 +43,17 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * Give a character an ESI token carrying the given scopes.
+ */
+function grantScopes(App\Models\Character $character, NicolasKion\Esi\Enums\EsiScope ...$scopes): App\Models\EsiToken
 {
-    // ..
+    $token = App\Models\EsiToken::factory()->for($character)->create();
+
+    foreach ($scopes as $scope) {
+        $model = App\Models\EsiScope::query()->firstOrCreate(['name' => $scope]);
+        $token->esiScopes()->attach($model);
+    }
+
+    return $token;
 }

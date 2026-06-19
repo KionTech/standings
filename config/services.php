@@ -39,12 +39,31 @@ return [
         ],
     ],
 
+    'discord' => [
+        'standing_request_webhook' => env('DISCORD_STANDING_REQUEST_WEBHOOK'),
+    ],
+
     'eveonline' => [
         'client_id' => env('EVEONLINE_CLIENT_ID'),
         'client_secret' => env('EVEONLINE_CLIENT_SECRET'),
         'redirect' => env('EVEONLINE_REDIRECT_URI'),
+
+        /*
+         * EVE character_ids of the admins, comma-separated. Anyone owning one of
+         * these characters can administer the standings.
+         */
+        'admin_character_ids' => array_values(array_filter(array_map(
+            static fn ($id): int => (int) mb_trim((string) $id),
+            explode(',', (string) env('EVE_ADMIN_CHARACTER_ID', '')),
+        ))),
+
         'required_scopes' => [
             EsiScope::PublicData,
+            EsiScope::ReadCharacterContacts,
+            EsiScope::WriteCharacterContacts,
+            EsiScope::ReadCorporationContacts,
+            EsiScope::ReadAllianceContacts,
+            EsiScope::SendMail,
         ],
     ],
 
