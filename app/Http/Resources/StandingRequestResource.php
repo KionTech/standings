@@ -27,6 +27,7 @@ class StandingRequestResource extends JsonResource
                 'name' => $this->subjectName(),
             ],
             'requested_by' => $this->character->name,
+            'effective_standing' => $this->effective_standing,
         ];
     }
 }

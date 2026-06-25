@@ -9,9 +9,14 @@ use App\Models\Corporation;
 use App\Models\DiscordSetting;
 use App\Models\SourceContact;
 use App\Models\StandingsSource;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use NicolasKion\Esi\Enums\EsiScope;
+
+afterEach(function () {
+    Carbon::setTestNow();
+});
 
 it('refreshes the source and queues every opted-in character', function () {
     Queue::fake();
@@ -98,6 +103,23 @@ it('queues syncs for unchanged standings when forced', function () {
     $this->artisan('standings:sync', ['--force' => true])->assertSuccessful();
 
     Queue::assertPushed(SyncCharacterStandings::class, 1);
+});
+
+it('skips the sync during eve downtime without calling esi or alerting', function () {
+    Queue::fake();
+    Http::fake();
+
+    // 11:05 UTC is inside EVE's daily downtime window.
+    Carbon::setTestNow(Carbon::parse('2026-06-25 11:05:00', 'UTC'));
+
+    // A source that cannot be read would normally fail and alert Discord.
+    StandingsSource::create(['type' => 'corporation', 'entity_id' => 2000]);
+    config(['services.eveonline.admin_character_ids' => []]);
+
+    $this->artisan('standings:sync')->assertSuccessful();
+
+    Http::assertNothingSent();
+    Queue::assertNothingPushed();
 });
 
 it('fails when no source is configured', function () {

@@ -13,6 +13,7 @@ use App\Models\SourceContact;
 use App\Models\StandingRequest;
 use App\Models\StandingsSource;
 use App\Models\User;
+use App\Services\EffectiveStandingResolver;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -26,6 +27,18 @@ class AdministrationController extends Controller
 
         $source = StandingsSource::current();
         $admin = $user->getActiveCharacter()->loadMissing(['corporation:id,name', 'alliance:id,name']);
+
+        $standingRequests = StandingRequest::query()
+            ->with(['character:id,name,corporation_id,alliance_id', 'character.corporation:id,name', 'character.alliance:id,name'])
+            ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
+            ->latest()
+            ->get();
+
+        $resolver = new EffectiveStandingResolver;
+        $standingRequests->each(fn (StandingRequest $request) => $request->setAttribute(
+            'effective_standing',
+            $resolver->resolve($request),
+        ));
 
         return Inertia::render('admin/Administration', [
             'source' => $source ? [
@@ -53,13 +66,7 @@ class AdministrationController extends Controller
                 'webhook_url' => DiscordSetting::current()->webhook_url,
                 'role_id' => DiscordSetting::current()->role_id,
             ],
-            'standingRequests' => StandingRequestResource::collection(
-                StandingRequest::query()
-                    ->with(['character:id,name,corporation_id,alliance_id', 'character.corporation:id,name', 'character.alliance:id,name'])
-                    ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
-                    ->latest()
-                    ->get()
-            )->resolve(),
+            'standingRequests' => StandingRequestResource::collection($standingRequests)->resolve(),
         ]);
     }
 

@@ -26,7 +26,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useInitials } from '@/composables/useInitials';
 import { countdown, dateWithAgo } from '@/lib/date';
-import { eveImage } from '@/lib/eve';
+import { eveImage, standingLabel, standingTextClass } from '@/lib/eve';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
@@ -179,26 +179,6 @@ function optionStatusLabel(option: RequestOption): string | null {
         return 'Rejected';
     }
     return null;
-}
-
-function standingLabel(standing: number): string {
-    return standing > 0 ? `+${standing}` : `${standing}`;
-}
-
-function standingTextClass(standing: number): string {
-    if (standing >= 5) {
-        return 'text-blue-600 dark:text-blue-400';
-    }
-    if (standing > 0) {
-        return 'text-sky-600 dark:text-sky-400';
-    }
-    if (standing === 0) {
-        return 'text-muted-foreground';
-    }
-    if (standing > -5) {
-        return 'text-orange-600 dark:text-orange-400';
-    }
-    return 'text-red-600 dark:text-red-400';
 }
 </script>
 

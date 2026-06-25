@@ -37,7 +37,7 @@ import {
 } from '@/components/ui/select';
 import { useInitials } from '@/composables/useInitials';
 import { countdown, dateWithAgo } from '@/lib/date';
-import { eveImage } from '@/lib/eve';
+import { eveImage, standingLabel, standingTextClass } from '@/lib/eve';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, router, useForm, usePoll } from '@inertiajs/vue3';
@@ -56,12 +56,21 @@ type SourceTypeOption = {
     available: boolean;
 };
 
+type EffectiveStanding = {
+    standing: number;
+    source: 'direct' | 'corporation' | 'alliance';
+    via_type: string;
+    via_id: number;
+    via_name: string | null;
+};
+
 type StandingRequestItem = {
     id: number;
     status: string;
     created_at: string;
     subject: { type: string; id: number; name: string | null };
     requested_by: string;
+    effective_standing: EffectiveStanding | null;
 };
 
 const props = defineProps<{
@@ -512,6 +521,37 @@ function statusVariant(
                                 </p>
                                 <p class="text-xs text-muted-foreground">
                                     Requested by {{ request.requested_by }}
+                                </p>
+                                <p class="text-xs">
+                                    <template v-if="request.effective_standing">
+                                        <span
+                                            class="font-medium"
+                                            :class="
+                                                standingTextClass(
+                                                    request.effective_standing
+                                                        .standing,
+                                                )
+                                            "
+                                        >
+                                            {{
+                                                standingLabel(
+                                                    request.effective_standing
+                                                        .standing,
+                                                )
+                                            }}
+                                        </span>
+                                        <span class="text-muted-foreground">
+                                            {{
+                                                request.effective_standing
+                                                    .source === 'direct'
+                                                    ? 'set directly'
+                                                    : `inherited via ${request.effective_standing.via_name ?? request.effective_standing.via_type}`
+                                            }}
+                                        </span>
+                                    </template>
+                                    <span v-else class="text-muted-foreground">
+                                        No standing yet
+                                    </span>
                                 </p>
                             </div>
 

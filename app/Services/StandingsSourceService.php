@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\StandingRequestStatus;
 use App\Enums\StandingsSourceType;
 use App\Models\Character;
 use App\Models\SourceContact;
+use App\Models\StandingRequest;
 use App\Models\StandingsSource;
 use Illuminate\Support\Facades\DB;
 use NicolasKion\Esi\Esi;
@@ -117,7 +119,38 @@ class StandingsSourceService
             }
         });
 
+        $this->markFulfilledRequestsDone();
+
         return true;
+    }
+
+    /**
+     * Auto-complete pending standing requests whose subject now has a direct,
+     * positive (blue) standing. A standing inherited only through a parent corp
+     * or alliance never auto-closes a request — that is left to an admin.
+     */
+    private function markFulfilledRequestsDone(): void
+    {
+        $pending = StandingRequest::query()
+            ->where('status', StandingRequestStatus::Pending)
+            ->get(['id', 'subject_type', 'subject_id']);
+
+        if ($pending->isEmpty()) {
+            return;
+        }
+
+        $blueContacts = SourceContact::query()
+            ->where('standing', '>', 0)
+            ->get(['contact_id', 'contact_type'])
+            ->keyBy(fn (SourceContact $contact): string => $contact->contact_type->value.':'.$contact->contact_id);
+
+        $fulfilledIds = $pending
+            ->filter(fn (StandingRequest $request): bool => $blueContacts->has($request->subject_type->value.':'.$request->subject_id))
+            ->pluck('id');
+
+        if ($fulfilledIds->isNotEmpty()) {
+            StandingRequest::query()->whereKey($fulfilledIds)->update(['status' => StandingRequestStatus::Done]);
+        }
     }
 
     /**

@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Enums\StandingRequestStatus;
 use App\Models\Alliance;
 use App\Models\Character;
 use App\Models\Corporation;
 use App\Models\SourceContact;
+use App\Models\StandingRequest;
 use App\Models\StandingsSource;
 use App\Services\StandingsSourceService;
 use Illuminate\Support\Facades\Http;
@@ -92,6 +94,85 @@ it('does nothing when no admin can read the source', function () {
 
     expect(app(StandingsSourceService::class)->refresh())->toBeNull();
     Http::assertNothingSent();
+});
+
+it('marks a pending request done when a direct blue standing appears', function () {
+    adminReader('corporation', 2000, EsiScope::ReadCorporationContacts);
+    StandingsSource::create(['type' => 'corporation', 'entity_id' => 2000]);
+
+    $character = Character::factory()->create();
+    $request = StandingRequest::factory()->create([
+        'subject_type' => 'character',
+        'subject_id' => $character->id,
+        'requested_by_character_id' => $character->id,
+        'status' => 'pending',
+    ]);
+
+    Http::fake([
+        'esi.evetech.net/corporations/2000/contacts/*' => Http::response([
+            ['contact_id' => $character->id, 'contact_type' => 'character', 'standing' => 5, 'label_ids' => []],
+        ], 200),
+        'esi.evetech.net/universe/names/*' => Http::response([
+            ['category' => 'character', 'id' => $character->id, 'name' => 'Requested Pilot'],
+        ], 200),
+    ]);
+
+    app(StandingsSourceService::class)->refresh();
+
+    expect($request->refresh()->status)->toBe(StandingRequestStatus::Done);
+});
+
+it('does not close a request when the direct standing is neutral or red', function () {
+    adminReader('corporation', 2000, EsiScope::ReadCorporationContacts);
+    StandingsSource::create(['type' => 'corporation', 'entity_id' => 2000]);
+
+    $character = Character::factory()->create();
+    $request = StandingRequest::factory()->create([
+        'subject_type' => 'character',
+        'subject_id' => $character->id,
+        'requested_by_character_id' => $character->id,
+        'status' => 'pending',
+    ]);
+
+    Http::fake([
+        'esi.evetech.net/corporations/2000/contacts/*' => Http::response([
+            ['contact_id' => $character->id, 'contact_type' => 'character', 'standing' => 0, 'label_ids' => []],
+        ], 200),
+        'esi.evetech.net/universe/names/*' => Http::response([
+            ['category' => 'character', 'id' => $character->id, 'name' => 'Requested Pilot'],
+        ], 200),
+    ]);
+
+    app(StandingsSourceService::class)->refresh();
+
+    expect($request->refresh()->status)->toBe(StandingRequestStatus::Pending);
+});
+
+it('does not auto-close a request that is only blue through a parent', function () {
+    adminReader('corporation', 2000, EsiScope::ReadCorporationContacts);
+    StandingsSource::create(['type' => 'corporation', 'entity_id' => 2000]);
+
+    Corporation::query()->firstOrCreate(['id' => 4000], ['name' => 'Member Corp']);
+    $character = Character::factory()->create(['corporation_id' => 4000]);
+    $request = StandingRequest::factory()->create([
+        'subject_type' => 'character',
+        'subject_id' => $character->id,
+        'requested_by_character_id' => $character->id,
+        'status' => 'pending',
+    ]);
+
+    Http::fake([
+        'esi.evetech.net/corporations/2000/contacts/*' => Http::response([
+            ['contact_id' => 4000, 'contact_type' => 'corporation', 'standing' => 10, 'label_ids' => []],
+        ], 200),
+        'esi.evetech.net/universe/names/*' => Http::response([
+            ['category' => 'corporation', 'id' => 4000, 'name' => 'Member Corp'],
+        ], 200),
+    ]);
+
+    app(StandingsSourceService::class)->refresh();
+
+    expect($request->refresh()->status)->toBe(StandingRequestStatus::Pending);
 });
 
 it('reports no change and skips name resolution when the standings are unchanged', function () {

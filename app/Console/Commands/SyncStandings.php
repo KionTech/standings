@@ -9,6 +9,7 @@ use App\Jobs\SyncCharacterStandings;
 use App\Models\Character;
 use App\Models\StandingsSource;
 use App\Services\StandingsSourceService;
+use App\Support\EveDowntime;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -20,6 +21,14 @@ class SyncStandings extends Command
 {
     public function handle(StandingsSourceService $source): int
     {
+        // ESI is unavailable during EVE's daily downtime; skip the run so we
+        // don't fail and falsely alert that the source is unreadable.
+        if (EveDowntime::isActive()) {
+            $this->components->info('Skipping standings sync during EVE downtime.');
+
+            return self::SUCCESS;
+        }
+
         $changed = $source->refresh();
 
         if ($changed === null) {
