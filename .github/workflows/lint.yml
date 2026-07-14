@@ -1,49 +1,91 @@
-name: linter
+name: lint
 
 on:
   push:
     branches:
-      - develop
       - main
-      - master
-      - workos
   pull_request:
-    branches:
-      - develop
-      - main
-      - master
-      - workos
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  quality:
+  lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout Code
+        uses: actions/checkout@v6
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
+          tools: composer:v2
+          coverage: none
 
-      - name: Install Dependencies
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install Composer Dependencies
+        uses: ramsey/composer-install@v3
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Check PHP Code Style (Pint)
+        run: vendor/bin/pint --parallel --test
+
+      - name: Check Refactoring Rules (Rector)
+        run: vendor/bin/rector process --dry-run --no-progress-bar
+
+      - name: Check Frontend Formatting (Prettier)
+        run: npm run format:check
+
+      - name: Lint Frontend (Oxlint)
+        run: npm run lint:check
+
+  types:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install Composer Dependencies
+        uses: ramsey/composer-install@v3
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Prepare Environment
         run: |
-          composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
-          npm install
+          cp .env.example .env
+          php artisan key:generate
 
-      - name: Run Pint
-        run: composer lint
+      - name: Generate Wayfinder Types
+        run: php artisan wayfinder:generate
 
-      - name: Format Frontend
-        run: npm run format
-
-      - name: Lint Frontend
-        run: npm run lint
-
-      # - name: Commit Changes
-      #   uses: stefanzweifel/git-auto-commit-action@v7
-      #   with:
-      #     commit_message: fix code style
-      #     commit_options: '--no-verify'
+      - name: Check Types (vue-tsc)
+        run: npm run types:check

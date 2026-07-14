@@ -9,6 +9,7 @@
         "format": "prettier --write resources/",
         "format:check": "prettier --check resources/",
         "lint": "oxlint --fix --deny-warnings .",
+        "lint:check": "oxlint --deny-warnings .",
         "types:check": "vue-tsc --noEmit"
     },
     "devDependencies": {
