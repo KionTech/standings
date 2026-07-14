@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $updated_at
  * @property-read Character $character
+ * @property-read array{standing: float, source: string, via_type: string, via_id: int, via_name: string|null}|null $effective_standing Set via EffectiveStandingResolver before serialization.
  */
 class StandingRequest extends Model
 {

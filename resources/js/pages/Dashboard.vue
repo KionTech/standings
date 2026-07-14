@@ -3,6 +3,7 @@ import {
     sync as syncCharacters,
     update as updateCharacterSync,
 } from '@/actions/App/Http/Controllers/CharacterSyncController';
+import { update as setMainCharacterAction } from '@/actions/App/Http/Controllers/MainCharacterController';
 import { store as requestStandingAction } from '@/actions/App/Http/Controllers/StandingRequestController';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -32,7 +33,7 @@ import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
 import { Head, router, usePoll } from '@inertiajs/vue3';
 import { useNow } from '@vueuse/core';
-import { Plus, RefreshCw } from '@lucide/vue';
+import { Plus, RefreshCw, Star } from '@lucide/vue';
 import { computed } from 'vue';
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
@@ -64,6 +65,7 @@ type RequestOption = {
 type SyncCharacter = {
     id: number;
     name: string;
+    is_main: boolean;
     should_sync: boolean;
     has_write_scope: boolean;
     inherits_source: boolean;
@@ -126,6 +128,14 @@ const sortedStandings = computed(() =>
 
 function syncMyCharacters(): void {
     router.post(syncCharacters.url(), {}, { preserveScroll: true });
+}
+
+function setMainCharacter(character: SyncCharacter): void {
+    router.put(
+        setMainCharacterAction.url({ character: character.id }),
+        {},
+        { preserveScroll: true },
+    );
 }
 
 function toggleSync(character: SyncCharacter, value: boolean): void {
@@ -316,7 +326,7 @@ function optionStatusLabel(option: RequestOption): string | null {
                         <CardTitle>Your characters</CardTitle>
                         <CardDescription>
                             Choose which characters mirror the source's
-                            standings.
+                            standings, and star your main character.
                         </CardDescription>
                     </div>
                     <div class="flex items-center gap-2">
@@ -444,8 +454,16 @@ function optionStatusLabel(option: RequestOption): string | null {
                                 </AvatarFallback>
                             </Avatar>
                             <div class="flex-1">
-                                <p class="text-sm font-medium">
+                                <p
+                                    class="flex items-center gap-2 text-sm font-medium"
+                                >
                                     {{ character.name }}
+                                    <Badge
+                                        v-if="character.is_main"
+                                        variant="secondary"
+                                    >
+                                        Main
+                                    </Badge>
                                 </p>
                                 <div
                                     class="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground"
@@ -488,6 +506,18 @@ function optionStatusLabel(option: RequestOption): string | null {
                             </div>
 
                             <div class="flex items-center gap-3">
+                                <Button
+                                    v-if="!character.is_main"
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-7 w-7 text-muted-foreground"
+                                    title="Set as main character"
+                                    :aria-label="`Set ${character.name} as your main character`"
+                                    @click="setMainCharacter(character)"
+                                >
+                                    <Star class="h-4 w-4" />
+                                </Button>
                                 <span class="text-xs text-muted-foreground">
                                     <template v-if="character.inherits_source">
                                         Inherits the source

@@ -7,6 +7,7 @@ namespace App\Models;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -16,10 +17,12 @@ use InvalidArgumentException;
 /**
  * @property int $id
  * @property string $name
+ * @property int|null $main_character_id
  * @property string $remember_token
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $updated_at
  * @property-read EloquentCollection<int, Character> $characters
+ * @property-read Character|null $mainCharacter
  */
 class User extends Authenticatable
 {
@@ -43,6 +46,14 @@ class User extends Authenticatable
     public function characters(): HasMany
     {
         return $this->hasMany(Character::class);
+    }
+
+    /**
+     * @return BelongsTo<Character, $this>
+     */
+    public function mainCharacter(): BelongsTo
+    {
+        return $this->belongsTo(Character::class, 'main_character_id');
     }
 
     public function getActiveCharacter(): Character
@@ -104,4 +115,5 @@ class User extends Authenticatable
 
         return array_intersect($admin_character_ids, $this->getCharacterIds()) !== [];
     }
+
 }

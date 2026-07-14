@@ -35,6 +35,7 @@ use NicolasKion\Esi\Interfaces\EsiToken as EsiTokenInterface;
  * @property-read EloquentCollection<int, EsiToken> $esiTokens
  * @property-read EloquentCollection<int, CharacterSyncedContact> $syncedContacts
  * @property-read User|null $user
+ * @property-read bool|null $inherits_source Set by controllers before serialization when the standings source covers this character.
  */
 class Character extends Model implements \NicolasKion\Esi\Interfaces\Character
 {

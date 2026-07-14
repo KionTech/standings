@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\StandingsSourceController;
 use App\Http\Controllers\CharacterSyncController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EveController;
+use App\Http\Controllers\MainCharacterController;
 use App\Http\Controllers\StandingRequestController;
 use App\Http\Controllers\UserCharacterController;
 use Illuminate\Support\Facades\Route;
@@ -26,6 +27,7 @@ Route::middleware(['auth'])->group(function (): void {
     Route::post('/standings/{character}/request', [StandingRequestController::class, 'store'])->name('standing-requests.store');
 
     Route::put('/auth/character/{character}', [UserCharacterController::class, 'update'])->name('auth.character.update');
+    Route::put('/auth/character/{character}/main', [MainCharacterController::class, 'update'])->name('auth.character.main');
     Route::delete('/auth/character/{character}', [UserCharacterController::class, 'destroy'])->name('auth.character.destroy');
 
     Route::post('/logout', function () {
