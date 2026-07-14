@@ -2,18 +2,23 @@
 import { index as overviewRoute } from '@/actions/App/Http/Controllers/Admin/AdministrationController';
 import { index as pilotsRoute } from '@/actions/App/Http/Controllers/Admin/PilotController';
 import Pagination from '@/components/Pagination.vue';
+import PilotCharacterRow from '@/components/PilotCharacterRow.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useInitials } from '@/composables/useInitials';
-import { eveImage } from '@/lib/eve';
+import { effectiveStandingChipClass, eveImage, standingLabel } from '@/lib/eve';
 import AdminLayout from '@/layouts/admin/Layout.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Paginated } from '@/types';
 import { Head, router } from '@inertiajs/vue3';
 import { watchDebounced } from '@vueuse/core';
-import { Search, Star } from '@lucide/vue';
+import {
+    ArrowDown,
+    ArrowUp,
+    ChevronDown,
+    ChevronsUpDown,
+    Search,
+} from '@lucide/vue';
 import { computed, ref } from 'vue';
 
 type EntitySummary = {
@@ -26,32 +31,22 @@ type PilotCharacter = {
     id: number;
     name: string | null;
     is_main: boolean;
+    account: { id: number | null; name: string | null };
+    standing: { value: number; source: string } | null;
     corporation: EntitySummary | null;
     alliance: EntitySummary | null;
-};
-
-type PilotAccount = {
-    id: number;
-    name: string;
-    characters: PilotCharacter[];
-};
-
-type AffiliatedAccount = {
-    id: number;
-    name: string | null;
-    avatar_character_id: number;
-    via: string[];
 };
 
 type AffiliationGroup = {
     id: number;
     name: string | null;
     ticker: string | null;
-    accounts: AffiliatedAccount[];
+    standing: { value: number; source: string } | null;
+    characters: PilotCharacter[];
 };
 
 const props = defineProps<{
-    users: Paginated<PilotAccount> | null;
+    characters: PilotCharacter[] | null;
     groups: Paginated<AffiliationGroup> | null;
     filters: { search: string; view: string };
 }>();
@@ -61,10 +56,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Pilots', href: pilotsRoute() },
 ];
 
-const { getInitials } = useInitials();
-
 const VIEWS = [
-    { value: 'accounts', label: 'Accounts' },
+    { value: 'characters', label: 'Characters' },
     { value: 'corporations', label: 'Corporations' },
     { value: 'alliances', label: 'Alliances' },
 ] as const;
@@ -74,7 +67,7 @@ type View = (typeof VIEWS)[number]['value'];
 const currentView = computed<View>(() =>
     VIEWS.some((view) => view.value === props.filters.view)
         ? (props.filters.view as View)
-        : 'accounts',
+        : 'characters',
 );
 
 const search = ref(props.filters.search);
@@ -83,14 +76,14 @@ function visitWith(view: View, searchTerm: string): void {
     router.get(
         pilotsRoute.url(),
         {
-            ...(view !== 'accounts' ? { view } : {}),
+            ...(view !== 'characters' ? { view } : {}),
             ...(searchTerm ? { search: searchTerm } : {}),
         },
         {
             preserveState: true,
             preserveScroll: true,
             replace: true,
-            only: ['users', 'groups', 'filters'],
+            only: ['characters', 'groups', 'filters'],
         },
     );
 }
@@ -99,26 +92,115 @@ function setView(view: View): void {
     visitWith(view, search.value);
 }
 
-watchDebounced(search, (value) => visitWith(currentView.value, value), {
-    debounce: 300,
-});
+// The characters view filters client-side; only the paginated group views
+// need the server to search.
+watchDebounced(
+    search,
+    (value) => {
+        if (currentView.value !== 'characters') {
+            visitWith(currentView.value, value);
+        }
+    },
+    { debounce: 300 },
+);
 
 const description = computed(() => {
     if (currentView.value === 'corporations') {
-        return 'Corporations that registered characters belong to, and the accounts affiliated through them.';
+        return 'Corporations that registered characters belong to, their standing and why it applies.';
     }
     if (currentView.value === 'alliances') {
-        return 'Alliances that registered characters belong to, and the accounts affiliated through them.';
+        return 'Alliances that registered characters belong to, their standing and why it applies.';
     }
-    return 'Every registered account with its main character and alts.';
+    return 'Every registered character, the account it belongs to, and its effective standing.';
 });
 
 const groupEntityType = computed(() =>
     currentView.value === 'alliances' ? 'alliance' : 'corporation',
 );
 
-function mainCharacterOf(user: PilotAccount): PilotCharacter | undefined {
-    return user.characters.find((character) => character.is_main);
+// --- Characters view: client-side search and sort ---
+
+type SortKey = 'name' | 'account' | 'corporation' | 'alliance' | 'standing';
+
+const sortKey = ref<SortKey>('name');
+const sortAsc = ref(true);
+
+function sortBy(key: SortKey): void {
+    if (sortKey.value === key) {
+        sortAsc.value = !sortAsc.value;
+    } else {
+        sortKey.value = key;
+        // Standings read best blue-first.
+        sortAsc.value = key !== 'standing';
+    }
+}
+
+function sortText(character: PilotCharacter, key: SortKey): string {
+    if (key === 'account') {
+        return character.account.name ?? '';
+    }
+    if (key === 'corporation' || key === 'alliance') {
+        return character[key]?.name ?? '';
+    }
+    return character.name ?? '';
+}
+
+const visibleCharacters = computed(() => {
+    const term = search.value.trim().toLowerCase();
+
+    const rows = (props.characters ?? []).filter(
+        (character) =>
+            term === '' ||
+            [
+                character.name,
+                character.account.name,
+                character.corporation?.name,
+                character.alliance?.name,
+            ].some((value) => value?.toLowerCase().includes(term)),
+    );
+
+    const direction = sortAsc.value ? 1 : -1;
+
+    return rows.toSorted((a, b) => {
+        if (sortKey.value === 'standing') {
+            // Characters without a standing sort last either way.
+            if (a.standing === null || b.standing === null) {
+                return (
+                    Number(a.standing === null) - Number(b.standing === null)
+                );
+            }
+
+            return direction * (a.standing.value - b.standing.value);
+        }
+
+        return (
+            direction *
+            sortText(a, sortKey.value).localeCompare(sortText(b, sortKey.value))
+        );
+    });
+});
+
+const SORTABLE_COLUMNS: { key: SortKey; label: string }[] = [
+    { key: 'name', label: 'Character' },
+    { key: 'account', label: 'Account' },
+    { key: 'corporation', label: 'Corporation' },
+    { key: 'alliance', label: 'Alliance' },
+];
+
+// --- Group views: collapsible sections, expanded by default ---
+
+const collapsedGroups = ref(new Set<number>());
+
+function toggleGroup(id: number): void {
+    const next = new Set(collapsedGroups.value);
+
+    if (next.has(id)) {
+        next.delete(id);
+    } else {
+        next.add(id);
+    }
+
+    collapsedGroups.value = next;
 }
 </script>
 
@@ -165,102 +247,76 @@ function mainCharacterOf(user: PilotAccount): PilotCharacter | undefined {
                 </div>
             </template>
 
-            <!-- Accounts view -->
-            <template v-if="currentView === 'accounts' && users">
+            <!-- Characters view: one flat, sortable list -->
+            <template v-if="currentView === 'characters' && characters">
                 <p
-                    v-if="users.data.length === 0"
+                    v-if="visibleCharacters.length === 0"
                     class="py-16 text-center text-sm text-muted-foreground"
                 >
-                    <template v-if="filters.search">
-                        No pilots match "{{ filters.search }}". Try a different
+                    <template v-if="search">
+                        No characters match "{{ search }}". Try a different
                         name.
                     </template>
                     <template v-else>
-                        No pilots registered yet. Accounts appear here after
+                        No characters registered yet. They appear here after
                         their first login.
                     </template>
                 </p>
-                <ul v-else class="grid gap-4 lg:grid-cols-2">
-                    <li
-                        v-for="user in users.data"
-                        :key="user.id"
-                        class="self-start rounded-xl border bg-card"
+                <div v-else class="overflow-x-auto">
+                    <div
+                        class="grid min-w-[48rem] grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_5rem] rounded-xl border bg-card"
                     >
                         <div
-                            class="flex items-center justify-between gap-4 border-b bg-muted/40 px-3 py-2"
+                            class="col-span-full grid grid-cols-subgrid gap-4 border-b px-3 py-2 text-xs font-medium text-muted-foreground"
                         >
-                            <p
-                                class="flex items-center gap-2 text-sm font-medium"
+                            <button
+                                v-for="column in SORTABLE_COLUMNS"
+                                :key="column.key"
+                                type="button"
+                                class="flex cursor-pointer items-center gap-1 text-left transition-colors hover:text-foreground"
+                                @click="sortBy(column.key)"
                             >
-                                <Star
-                                    class="h-3.5 w-3.5 text-muted-foreground"
+                                {{ column.label }}
+                                <ArrowUp
+                                    v-if="sortKey === column.key && sortAsc"
+                                    class="h-3 w-3"
                                 />
-                                <template v-if="mainCharacterOf(user)">
-                                    {{ mainCharacterOf(user)!.name }}
-                                </template>
-                                <template v-else>
-                                    {{ user.name }}
-                                    <span
-                                        class="text-xs font-normal text-muted-foreground"
-                                    >
-                                        no main selected
-                                    </span>
-                                </template>
-                            </p>
-                            <span class="text-xs text-muted-foreground">
-                                {{ user.characters.length }}
-                                {{
-                                    user.characters.length === 1
-                                        ? 'character'
-                                        : 'characters'
-                                }}
-                            </span>
-                        </div>
-                        <ul class="p-2">
-                            <li
-                                v-for="character in user.characters"
-                                :key="character.id"
-                                class="flex items-center gap-4 rounded-md px-2 py-2 transition-colors odd:bg-muted/40 hover:bg-muted"
+                                <ArrowDown
+                                    v-else-if="sortKey === column.key"
+                                    class="h-3 w-3"
+                                />
+                                <ChevronsUpDown
+                                    v-else
+                                    class="h-3 w-3 opacity-50"
+                                />
+                            </button>
+                            <button
+                                type="button"
+                                class="flex cursor-pointer items-center justify-end gap-1 text-right transition-colors hover:text-foreground"
+                                @click="sortBy('standing')"
                             >
-                                <Avatar class="h-8 w-8 overflow-hidden rounded">
-                                    <AvatarImage
-                                        :src="
-                                            eveImage('character', character.id)!
-                                        "
-                                        :alt="character.name ?? ''"
-                                    />
-                                    <AvatarFallback class="rounded text-xs">
-                                        {{ getInitials(character.name ?? '?') }}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div class="flex-1">
-                                    <p
-                                        class="flex items-center gap-2 text-sm font-medium"
-                                    >
-                                        {{ character.name ?? character.id }}
-                                        <Badge
-                                            v-if="character.is_main"
-                                            variant="secondary"
-                                        >
-                                            Main
-                                        </Badge>
-                                    </p>
-                                    <div
-                                        class="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground"
-                                    >
-                                        <span v-if="character.corporation">
-                                            {{ character.corporation.name }}
-                                        </span>
-                                        <span v-if="character.alliance">
-                                            {{ character.alliance.name }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </li>
-                        </ul>
-                    </li>
-                </ul>
-                <Pagination v-if="users.last_page > 1" :links="users.links" />
+                                Standing
+                                <ArrowUp
+                                    v-if="sortKey === 'standing' && sortAsc"
+                                    class="h-3 w-3"
+                                />
+                                <ArrowDown
+                                    v-else-if="sortKey === 'standing'"
+                                    class="h-3 w-3"
+                                />
+                                <ChevronsUpDown
+                                    v-else
+                                    class="h-3 w-3 opacity-50"
+                                />
+                            </button>
+                        </div>
+                        <PilotCharacterRow
+                            v-for="character in visibleCharacters"
+                            :key="character.id"
+                            :character="character"
+                        />
+                    </div>
+                </div>
             </template>
 
             <!-- Corporation / alliance views -->
@@ -277,88 +333,120 @@ function mainCharacterOf(user: PilotAccount): PilotCharacter | undefined {
                         No {{ currentView }} with registered characters yet.
                     </template>
                 </p>
-                <ul v-else class="grid gap-4 lg:grid-cols-2">
-                    <li
-                        v-for="group in groups.data"
-                        :key="group.id"
-                        class="self-start rounded-xl border bg-card"
+                <div v-else class="overflow-x-auto">
+                    <div
+                        class="grid min-w-[40rem] rounded-xl border bg-card"
+                        :class="
+                            currentView === 'alliances'
+                                ? 'grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_5rem]'
+                                : 'grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_5rem]'
+                        "
                     >
                         <div
-                            class="flex items-center justify-between gap-4 border-b bg-muted/40 px-3 py-2"
+                            class="col-span-full grid grid-cols-subgrid gap-4 border-b px-3 py-2 text-xs font-medium text-muted-foreground"
                         >
-                            <p
-                                class="flex min-w-0 items-center gap-2 text-sm font-medium"
+                            <span>Character</span>
+                            <span>Account</span>
+                            <span v-if="currentView === 'alliances'">
+                                Corporation
+                            </span>
+                            <span class="text-right">Standing</span>
+                        </div>
+                        <template v-for="group in groups.data" :key="group.id">
+                            <button
+                                type="button"
+                                class="col-span-full flex cursor-pointer items-center justify-between gap-4 border-b bg-muted/60 px-3 py-1.5 text-left transition-colors hover:bg-muted"
+                                :aria-expanded="!collapsedGroups.has(group.id)"
+                                @click="toggleGroup(group.id)"
                             >
-                                <Avatar
-                                    class="h-6 w-6 shrink-0 overflow-hidden rounded"
+                                <span
+                                    class="flex min-w-0 items-center gap-2 text-sm font-semibold"
                                 >
-                                    <AvatarImage
-                                        :src="
-                                            eveImage(groupEntityType, group.id)!
-                                        "
-                                        :alt="group.name ?? ''"
+                                    <ChevronDown
+                                        class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform"
+                                        :class="{
+                                            '-rotate-90': collapsedGroups.has(
+                                                group.id,
+                                            ),
+                                        }"
                                     />
-                                    <AvatarFallback
-                                        class="rounded text-[10px] uppercase"
+                                    <Avatar
+                                        class="h-7 w-7 shrink-0 overflow-hidden rounded"
                                     >
-                                        {{ groupEntityType.slice(0, 2) }}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <span class="truncate">
-                                    {{ group.name ?? group.id }}
+                                        <AvatarImage
+                                            :src="
+                                                eveImage(
+                                                    groupEntityType,
+                                                    group.id,
+                                                )!
+                                            "
+                                            :alt="group.name ?? ''"
+                                        />
+                                        <AvatarFallback
+                                            class="rounded text-[9px] uppercase"
+                                        >
+                                            {{ groupEntityType.slice(0, 2) }}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <span class="truncate">
+                                        {{ group.name ?? group.id }}
+                                    </span>
+                                    <span
+                                        v-if="group.ticker"
+                                        class="shrink-0 text-xs font-normal text-muted-foreground"
+                                    >
+                                        [{{ group.ticker }}]
+                                    </span>
                                 </span>
                                 <span
-                                    v-if="group.ticker"
-                                    class="shrink-0 text-xs font-normal text-muted-foreground"
+                                    class="flex shrink-0 items-center gap-3 text-xs"
                                 >
-                                    [{{ group.ticker }}]
-                                </span>
-                            </p>
-                            <span
-                                class="shrink-0 text-xs text-muted-foreground"
-                            >
-                                {{ group.accounts.length }}
-                                {{
-                                    group.accounts.length === 1
-                                        ? 'account'
-                                        : 'accounts'
-                                }}
-                            </span>
-                        </div>
-                        <ul class="p-2">
-                            <li
-                                v-for="account in group.accounts"
-                                :key="account.id"
-                                class="flex items-center gap-4 rounded-md px-2 py-2 transition-colors odd:bg-muted/40 hover:bg-muted"
-                            >
-                                <Avatar class="h-8 w-8 overflow-hidden rounded">
-                                    <AvatarImage
-                                        :src="
-                                            eveImage(
-                                                'character',
-                                                account.avatar_character_id,
-                                            )!
+                                    <span
+                                        v-if="group.standing"
+                                        class="flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold tabular-nums"
+                                        :class="
+                                            effectiveStandingChipClass(
+                                                group.standing,
+                                            )
                                         "
-                                        :alt="account.name ?? ''"
-                                    />
-                                    <AvatarFallback class="rounded text-xs">
-                                        {{ getInitials(account.name ?? '?') }}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div class="min-w-0 flex-1">
-                                    <p class="truncate text-sm font-medium">
-                                        {{ account.name ?? account.id }}
-                                    </p>
-                                    <p
-                                        class="mt-0.5 truncate text-xs text-muted-foreground"
                                     >
-                                        via {{ account.via.join(', ') }}
-                                    </p>
-                                </div>
-                            </li>
-                        </ul>
-                    </li>
-                </ul>
+                                        {{
+                                            standingLabel(group.standing.value)
+                                        }}
+                                        <span class="font-normal opacity-75">
+                                            via {{ group.standing.source }}
+                                        </span>
+                                    </span>
+                                    <span
+                                        v-else
+                                        class="text-muted-foreground italic"
+                                    >
+                                        no standing
+                                    </span>
+                                    <span class="text-muted-foreground">
+                                        {{ group.characters.length }}
+                                        {{
+                                            group.characters.length === 1
+                                                ? 'character'
+                                                : 'characters'
+                                        }}
+                                    </span>
+                                </span>
+                            </button>
+                            <template v-if="!collapsedGroups.has(group.id)">
+                                <PilotCharacterRow
+                                    v-for="character in group.characters"
+                                    :key="character.id"
+                                    :character="character"
+                                    :show-corporation="
+                                        currentView === 'alliances'
+                                    "
+                                    :show-alliance="false"
+                                />
+                            </template>
+                        </template>
+                    </div>
+                </div>
                 <Pagination v-if="groups.last_page > 1" :links="groups.links" />
             </template>
         </AdminLayout>

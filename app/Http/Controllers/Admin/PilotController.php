@@ -9,10 +9,9 @@ use App\Http\Resources\EntitySummaryResource;
 use App\Models\Alliance;
 use App\Models\Character;
 use App\Models\Corporation;
-use App\Models\User;
+use App\Services\EffectiveStandingResolver;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -20,6 +19,8 @@ use Inertia\Response;
 
 class PilotController extends Controller
 {
+    public function __construct(private readonly EffectiveStandingResolver $standings) {}
+
     public function index(Request $request): Response
     {
         Gate::authorize('standings.admin');
@@ -28,14 +29,14 @@ class PilotController extends Controller
         $view = $request->string('view')->value();
 
         if (! in_array($view, ['corporations', 'alliances'], true)) {
-            $view = 'accounts';
+            $view = 'characters';
         }
 
         return Inertia::render('admin/Pilots', [
-            'users' => $view === 'accounts' ? $this->accounts($search) : null,
+            'characters' => $view === 'characters' ? $this->characters() : null,
             'groups' => match ($view) {
-                'corporations' => $this->affiliations(Corporation::query(), 'corporation_id', $search),
-                'alliances' => $this->affiliations(Alliance::query(), 'alliance_id', $search),
+                'corporations' => $this->affiliations(Corporation::query(), $search),
+                'alliances' => $this->affiliations(Alliance::query(), $search),
                 default => null,
             },
             'filters' => [
@@ -46,48 +47,36 @@ class PilotController extends Controller
     }
 
     /**
-     * Registered accounts with their characters, main character first.
+     * Every registered character with its account, affiliations, and effective
+     * standing. The list is complete; searching and sorting happen client-side.
+     *
+     * @return array<int, array<string, mixed>>
      */
-    private function accounts(string $search): LengthAwarePaginator
+    private function characters(): array
     {
-        return User::query()
-            ->when($search !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
-                ->where('name', 'like', sprintf('%%%s%%', $search))
-                ->orWhereHas('characters', fn (Builder $query) => $query->where('name', 'like', sprintf('%%%s%%', $search)))))
+        return Character::query()
+            ->whereNotNull('user_id')
             ->with([
-                'characters:id,name,user_id,corporation_id,alliance_id',
-                'characters.corporation:id,name,ticker',
-                'characters.alliance:id,name,ticker',
+                'corporation:id,name,ticker',
+                'alliance:id,name,ticker',
+                'user:id,name,main_character_id',
+                'user.mainCharacter:id,name',
             ])
             ->orderBy('name')
-            ->paginate(20)
-            ->withQueryString()
-            ->through(fn (User $user): array => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'characters' => $user->characters
-                    ->sortBy('name')
-                    ->sortByDesc(fn (Character $character): bool => $character->id === $user->main_character_id)
-                    ->values()
-                    ->map(fn (Character $character): array => [
-                        'id' => $character->id,
-                        'name' => $character->name,
-                        'is_main' => $character->id === $user->main_character_id,
-                        'corporation' => $character->corporation ? new EntitySummaryResource($character->corporation) : null,
-                        'alliance' => $character->alliance ? new EntitySummaryResource($character->alliance) : null,
-                    ])->all(),
-            ]);
+            ->get()
+            ->map(fn (Character $character): array => $this->characterRow($character))
+            ->all();
     }
 
     /**
-     * Corporations or alliances that registered characters belong to, each with
-     * the accounts affiliated through those characters.
+     * Corporations or alliances that registered characters belong to, each
+     * with its effective standing and the registered characters inside it.
      *
      * @template TModel of Corporation|Alliance
      *
      * @param  \Illuminate\Database\Eloquent\Builder<TModel>  $query
      */
-    private function affiliations(Builder $query, string $characterForeignKey, string $search): LengthAwarePaginator
+    private function affiliations(Builder $query, string $search): LengthAwarePaginator
     {
         return $query
             ->whereHas('characters', fn (Builder $query) => $query->whereNotNull('user_id'))
@@ -99,9 +88,15 @@ class PilotController extends Controller
                     ->where('name', 'like', sprintf('%%%s%%', $search)))))
             ->with([
                 'characters' => fn ($query) => $query
-                    ->select(['id', 'name', 'user_id', $characterForeignKey])
+                    ->select(['id', 'name', 'user_id', 'corporation_id', 'alliance_id'])
                     ->whereNotNull('user_id')
-                    ->with(['user:id,name,main_character_id', 'user.mainCharacter:id,name']),
+                    ->orderBy('name')
+                    ->with([
+                        'corporation:id,name,ticker',
+                        'alliance:id,name,ticker',
+                        'user:id,name,main_character_id',
+                        'user.mainCharacter:id,name',
+                    ]),
             ])
             ->orderBy('name')
             ->paginate(20)
@@ -110,22 +105,33 @@ class PilotController extends Controller
                 'id' => $entity->id,
                 'name' => $entity->name,
                 'ticker' => $entity->ticker,
-                'accounts' => $entity->characters
-                    ->groupBy('user_id')
-                    ->map(function (EloquentCollection $characters): array {
-                        /** @var Character $first */
-                        $first = $characters->first();
-
-                        return [
-                            'id' => $first->user_id,
-                            'name' => $first->user->mainCharacter->name ?? $first->user?->name,
-                            'avatar_character_id' => $first->user->main_character_id ?? $first->id,
-                            'via' => $characters->sortBy('name')->pluck('name')->all(),
-                        ];
-                    })
-                    ->sortBy('name')
-                    ->values()
+                'standing' => $this->standings->standingForEntity($entity),
+                'characters' => $entity->characters
+                    ->map(fn (Character $character): array => $this->characterRow($character))
                     ->all(),
             ]);
+    }
+
+    /**
+     * A character row for the pilot tables: the character, the account it
+     * belongs to (named after its main character), its affiliations, and its
+     * effective standing.
+     *
+     * @return array{id: int, name: string|null, is_main: bool, account: array{id: int|null, name: string|null}, standing: array{value: float, source: string}|null, corporation: EntitySummaryResource|null, alliance: EntitySummaryResource|null}
+     */
+    private function characterRow(Character $character): array
+    {
+        return [
+            'id' => $character->id,
+            'name' => $character->name,
+            'is_main' => $character->id === $character->user?->main_character_id,
+            'account' => [
+                'id' => $character->user_id,
+                'name' => $character->user?->mainCharacter->name ?? $character->user?->name,
+            ],
+            'standing' => $this->standings->standingForCharacter($character),
+            'corporation' => $character->corporation ? new EntitySummaryResource($character->corporation) : null,
+            'alliance' => $character->alliance ? new EntitySummaryResource($character->alliance) : null,
+        ];
     }
 }

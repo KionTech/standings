@@ -117,7 +117,7 @@ it('forbids non-admins from updating discord settings', function () {
         ->assertForbidden();
 });
 
-it('lists every user with their main character first and alts after', function () {
+it('lists every registered character under its account on the pilots page', function () {
     $admin = administrationAdmin();
 
     $pilot = User::factory()->create();
@@ -130,15 +130,16 @@ it('lists every user with their main character first and alts after', function (
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('admin/Pilots')
-            ->has('users.data', 2)
-            ->where('users.data', function ($users) use ($pilot, $main, $alt) {
-                $account = collect($users)->firstWhere('id', $pilot->id);
+            ->where('characters', function ($characters) use ($main, $alt) {
+                $rows = collect($characters);
+                $mainRow = $rows->firstWhere('id', $main->id);
+                $altRow = $rows->firstWhere('id', $alt->id);
 
-                return $account !== null
-                    && $account['characters'][0]['id'] === $main->id
-                    && $account['characters'][0]['is_main'] === true
-                    && $account['characters'][1]['id'] === $alt->id
-                    && $account['characters'][1]['is_main'] === false;
+                return $mainRow !== null && $altRow !== null
+                    && $mainRow['is_main'] === true
+                    && $altRow['is_main'] === false
+                    && $mainRow['account']['name'] === 'Main Pilot'
+                    && $altRow['account']['name'] === 'Main Pilot';
             }));
 });
 
