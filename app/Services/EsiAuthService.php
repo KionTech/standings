@@ -108,8 +108,7 @@ readonly class EsiAuthService
     {
         $user = User::query()->findOrFail($user_id);
 
-        $character->user()->associate($user);
-        $character->save();
+        $this->transferOwnership($character, $user);
 
         return $user;
     }
@@ -123,11 +122,38 @@ readonly class EsiAuthService
             'name' => $socialite_user->character_name,
         ]);
 
-        $character->user()->associate($user);
         $character->character_owner_hash = $socialite_user->character_owner_hash;
-        $character->save();
+        $this->transferOwnership($character, $user);
 
         return $user;
+    }
+
+    /**
+     * Move a character onto a user's account. When the character belonged to a
+     * different user before (an in-game character transfer, or someone adding
+     * it to another account), the previous owner loses any stale references:
+     * a main-character selection pointing at it is cleared, and an account
+     * left without characters is removed entirely.
+     */
+    private function transferOwnership(Character $character, User $user): void
+    {
+        $previous_user = $character->user;
+
+        $character->user()->associate($user);
+        $character->save();
+
+        if (! $previous_user instanceof User || $previous_user->is($user)) {
+            return;
+        }
+
+        if ($previous_user->main_character_id === $character->id) {
+            $previous_user->mainCharacter()->disassociate();
+            $previous_user->save();
+        }
+
+        if (! $previous_user->characters()->exists()) {
+            $previous_user->delete();
+        }
     }
 
     private function ensureAffiliationsExist(CharacterAffiliation $affiliation): void
