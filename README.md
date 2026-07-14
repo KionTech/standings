@@ -1,29 +1,37 @@
+<div align="center">
+
 # Standings
 
-Automatically sync EVE Online standings from a single source onto every registered character. Define your standings once on a source entity, and every character that authorizes the app has their in-game contacts kept in sync. Built on Laravel 13, Vue 3, and Inertia v3.
+**One standings list, every character.**
+
+Sync EVE Online standings from a single source onto the in-game contacts of every registered character.
+
+[![Tests](https://github.com/KionTech/standings/actions/workflows/tests.yml/badge.svg)](https://github.com/KionTech/standings/actions/workflows/tests.yml)
+[![Lint](https://github.com/KionTech/standings/actions/workflows/lint.yml/badge.svg)](https://github.com/KionTech/standings/actions/workflows/lint.yml)
+[![Static Analysis](https://github.com/KionTech/standings/actions/workflows/static.yml/badge.svg)](https://github.com/KionTech/standings/actions/workflows/static.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+Built with Laravel 13, Vue 3, Inertia v3, and Tailwind CSS v4.
+
+</div>
 
 ## How It Works
 
-- A **source** (a character, corporation, or alliance) defines the canonical set of standings.
-- Pilots log in with EVE Online SSO and register their **characters**, granting the `write_contacts` scope.
-- The app mirrors the source's standings onto each registered character's in-game contact list and keeps them in sync.
+1. An admin picks a **source**: the character, corporation, or alliance whose contacts define the canonical standings.
+2. Pilots log in with EVE Online SSO and add all their characters, alts included. A setup wizard walks new pilots through it.
+3. The app mirrors the source's standings onto every syncing character's in-game contact list and keeps them fresh.
 
-> **ESI constraint:** EVE's ESI only exposes a **write** endpoint for *character* contacts. Corporation and alliance contact lists are **read-only** over the API (they can only be edited in-game by directors/diplomats). So corporations and alliances can register and have standings applied — but the sync writes to their **member characters individually**, never to the corp/alliance contact list itself. Corp/alliance contacts are still readable and can be used as a standings **source**.
+> **ESI constraint:** EVE's API only offers a write endpoint for *character* contacts. Corporation and alliance contact lists are read-only, so the sync always writes to member characters individually. Corp and alliance contacts can still be read and used as a source.
 
-## What It Provides
+## Features
 
-- **EVE Online SSO** -- Login through EVE Online's OAuth flow using [Socialite](https://laravel.com/docs/socialite) with the [EVE Online adapter](https://github.com/nullx27/eve-online-sso)
-- **Character Management** -- Add, switch, and manage multiple EVE Online characters per account
-- **Modern Frontend** -- Vue 3 SPA with Inertia v3, Tailwind CSS v4, and a full component library (Reka UI)
-- **Type-Safe Routing** -- [Laravel Wayfinder](https://github.com/laravel/wayfinder) generates TypeScript functions for all your Laravel routes
-- **Test Suite** -- Comprehensive Pest 4 tests
-
-## Companion Packages
-
-| Package | Description |
-|---|---|
-| [nicolaskion/sde](https://github.com/nicolaskion/sde) | EVE Online Static Data Export -- ships, items, regions, systems, and more as Eloquent models |
-| [nicolaskion/eve](https://github.com/nicolaskion/eve) | EVE API integration -- a clean Laravel package for the ESI (EVE Swagger Interface) |
+- **EVE Online SSO**: log in and add characters through EVE's OAuth flow, no passwords
+- **Automatic sync**: standings are copied to every opted-in character and refreshed continuously
+- **Standing requests**: pilots who are not blue yet can request a standing, with optional Discord notifications for admins
+- **Admin console**: overview with live stats, request triage, source and notification settings
+- **Pilot roster**: searchable list of every account grouped by main character, corporation, or alliance
+- **Privacy by eligibility**: standings stay hidden until one of your characters is covered by the source or has a positive standing
+- **Setup wizard**: first login walks new pilots through adding alts and picking a main character
 
 ## Requirements
 
@@ -31,9 +39,9 @@ Automatically sync EVE Online standings from a single source onto every register
 - MySQL 8.0+
 - Node.js 20+
 - Composer
-- An [EVE Online Developer Application](https://developers.eveonline.com/) for SSO credentials
+- An [EVE Online developer application](https://developers.eveonline.com/) for SSO credentials
 
-## Installation
+## Quickstart
 
 ```bash
 git clone https://github.com/KionTech/standings.git
@@ -41,45 +49,39 @@ cd standings
 composer setup
 ```
 
-The `setup` script installs dependencies, creates your `.env`, generates an app key, runs migrations, and builds frontend assets.
+The `setup` script installs dependencies, creates your `.env`, generates an app key, runs migrations, and builds the frontend.
 
-### EVE SSO Credentials
+### EVE SSO credentials
 
-Register your application at the [EVE Online Developers Portal](https://developers.eveonline.com/) and add the credentials to your `.env`. The app requires the contacts scopes to read sources and write character standings:
+Register an application at the [EVE Online Developers Portal](https://developers.eveonline.com/) and add the credentials to your `.env`:
 
 ```env
 EVEONLINE_CLIENT_ID=your-client-id
 EVEONLINE_CLIENT_SECRET=your-client-secret
 EVEONLINE_REDIRECT_URI="${APP_URL}/eve/callback"
+
+# EVE character_ids of the admins (comma-separated)
+EVE_ADMIN_CHARACTER_ID=
 ```
 
-Required ESI scopes: `esi-characters.read_contacts.v1`, `esi-characters.write_contacts.v1`, and optionally `esi-corporations.read_contacts.v1` / `esi-alliances.read_contacts.v1` for corp/alliance sources.
+Required ESI scopes: `esi-characters.read_contacts.v1` and `esi-characters.write_contacts.v1`, plus `esi-corporations.read_contacts.v1` / `esi-alliances.read_contacts.v1` for corp or alliance sources.
 
 ### Database
 
-Configure your MySQL connection in `.env`:
-
-```env
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=standings
-DB_USERNAME=root
-DB_PASSWORD=
-```
-
-Then seed the database:
+Point `.env` at your MySQL database, then seed:
 
 ```bash
 php artisan db:seed
 ```
 
-This will:
-1. Seed ESI scope definitions
-2. Download the latest SDE data from CCP
-3. Import all SDE tables (types, regions, solar systems, corporations, effects, etc.)
+This seeds the ESI scope definitions and imports the EVE Static Data Export (types, regions, solar systems, and more). The initial import takes a few minutes.
 
-The initial seed may take a few minutes depending on your connection and database speed.
+When CCP ships a new SDE version, update with:
+
+```bash
+php artisan sde:download
+php artisan sde:seed
+```
 
 ## Development
 
@@ -87,31 +89,7 @@ The initial seed may take a few minutes depending on your connection and databas
 composer run dev
 ```
 
-This starts the web server, queue worker, log viewer, and Vite dev server concurrently.
-
-## SDE (Static Data Export)
-
-The SDE contains EVE Online's static game data -- types, regions, solar systems, corporations, factions, and more.
-
-### Updating SDE Data
-
-When CCP releases a new SDE version (typically after game patches):
-
-```bash
-php artisan sde:download
-php artisan sde:seed
-```
-
-The seeder uses upserts, so it's safe to re-run without clearing existing data.
-
-### Individual Seeders
-
-```bash
-php artisan sde:seed:types
-php artisan sde:seed:effects
-php artisan sde:seed:regions
-php artisan sde:seed:social
-```
+Starts the web server, queue worker, log viewer, and Vite dev server concurrently.
 
 ## Testing
 
@@ -119,22 +97,15 @@ php artisan sde:seed:social
 php artisan test --compact
 ```
 
-## Tech Stack
+Runs the full Pest suite, including real-browser tests via Playwright.
 
-| Layer | Technology |
+## Companion Packages
+
+| Package | Description |
 |---|---|
-| Backend | Laravel 13, PHP 8.4 |
-| Frontend | Vue 3, Inertia v3, TypeScript |
-| Styling | Tailwind CSS v4 |
-| Components | Reka UI (headless), Lucide icons |
-| Auth | Socialite (EVE Online SSO) |
-| Testing | Pest 4 |
-| Code Style | Laravel Pint, ESLint, Prettier |
+| [nicolaskion/eve](https://github.com/NicolasKion/Esi) | EVE API integration for the ESI (EVE Swagger Interface) |
+| [nicolaskion/sde](https://github.com/NicolasKion/SDE) | EVE Static Data Export as Eloquent models |
 
 ## License
 
-Standings is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-
----
-
-EVE Online and all related trademarks are property of CCP hf.
+Released under the [MIT License](LICENSE).
