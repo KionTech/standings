@@ -15,17 +15,18 @@ function administrationAdmin(): User
     return $user;
 }
 
-it('shows the administration page to the admin', function () {
+it('shows the overview with stats and recent requests to the admin', function () {
     $user = administrationAdmin();
-    StandingRequest::factory()->for(Character::factory()->create(['name' => 'Requester']))->create();
+    StandingRequest::factory()->for(Character::factory()->create(['name' => 'Requester']))->create(['status' => 'pending']);
 
     $this->actingAs($user)
         ->get(route('admin.index'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('admin/Administration')
-            ->has('sourceTypes', 3)
-            ->has('standingRequests', 1));
+            ->component('admin/Overview')
+            ->where('stats.pending_requests', 1)
+            ->where('stats.pilots', 2)
+            ->has('recentRequests', 1));
 });
 
 it('treats any of the comma-separated admin characters as an admin', function () {
@@ -114,4 +115,72 @@ it('forbids non-admins from updating discord settings', function () {
     $this->actingAs($user)
         ->put(route('admin.discord-settings.update'), ['webhook_url' => 'https://discord.com/x'])
         ->assertForbidden();
+});
+
+it('lists every user with their main character first and alts after', function () {
+    $admin = administrationAdmin();
+
+    $pilot = User::factory()->create();
+    $alt = Character::factory()->for($pilot)->create(['name' => 'Alt Pilot']);
+    $main = Character::factory()->for($pilot)->create(['name' => 'Main Pilot']);
+    $pilot->mainCharacter()->associate($main)->save();
+
+    $this->actingAs($admin)
+        ->get(route('admin.pilots.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('admin/Pilots')
+            ->has('users.data', 2)
+            ->where('users.data', function ($users) use ($pilot, $main, $alt) {
+                $account = collect($users)->firstWhere('id', $pilot->id);
+
+                return $account !== null
+                    && $account['characters'][0]['id'] === $main->id
+                    && $account['characters'][0]['is_main'] === true
+                    && $account['characters'][1]['id'] === $alt->id
+                    && $account['characters'][1]['is_main'] === false;
+            }));
+});
+
+it('shows pending requests on the standing requests page by default', function () {
+    $user = administrationAdmin();
+    StandingRequest::factory()->for(Character::factory()->create(['name' => 'Requester']))->create();
+    StandingRequest::factory()->create(['status' => 'done']);
+
+    $this->actingAs($user)
+        ->get(route('admin.standing-requests.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('admin/StandingRequests')
+            ->has('standingRequests.data', 1)
+            ->where('standingRequests.data.0.status', 'pending')
+            ->where('counts.pending', 1)
+            ->where('counts.done', 1)
+            ->where('filters.status', 'pending'));
+});
+
+it('shows done requests only when the done filter is selected', function () {
+    $user = administrationAdmin();
+    StandingRequest::factory()->create(['status' => 'pending']);
+    StandingRequest::factory()->create(['status' => 'done']);
+
+    $this->actingAs($user)
+        ->get(route('admin.standing-requests.index', ['status' => 'done']))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('standingRequests.data', 1)
+            ->where('standingRequests.data.0.status', 'done')
+            ->where('filters.status', 'done'));
+});
+
+it('paginates the standing requests list', function () {
+    $user = administrationAdmin();
+    StandingRequest::factory()->count(30)->create(['status' => 'pending']);
+
+    $this->actingAs($user)
+        ->get(route('admin.standing-requests.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('standingRequests.data', 25)
+            ->where('standingRequests.total', 30));
 });

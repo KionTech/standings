@@ -27,10 +27,10 @@ it('passes the inherited effective standing for each request to the admin consol
     ]);
 
     $this->actingAs($user)
-        ->get(route('admin.index'))
+        ->get(route('admin.standing-requests.index'))
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('standingRequests.0.effective_standing.source', 'corporation')
-            ->where('standingRequests.0.effective_standing.standing', 5)
-            ->where('standingRequests.0.effective_standing.via_name', 'Blue Corp')
+            ->where('standingRequests.data.0.effective_standing.source', 'corporation')
+            ->where('standingRequests.data.0.effective_standing.standing', 5)
+            ->where('standingRequests.data.0.effective_standing.via_name', 'Blue Corp')
         );
 });

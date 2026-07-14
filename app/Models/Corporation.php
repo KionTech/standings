@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Corporation extends Model
 {
@@ -29,6 +30,14 @@ class Corporation extends Model
         'npc',
         'alliance_id',
     ];
+
+    /**
+     * @return HasMany<Character,$this>
+     */
+    public function characters(): HasMany
+    {
+        return $this->hasMany(Character::class, 'corporation_id');
+    }
 
     /**
      * @return BelongsTo<Character,$this>

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Admin\AdministrationController;
 use App\Http\Controllers\Admin\DiscordSettingController;
+use App\Http\Controllers\Admin\PilotController;
+use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\StandingRequestController as AdminStandingRequestController;
 use App\Http\Controllers\Admin\StandingsSourceController;
 use App\Http\Controllers\CharacterSyncController;
@@ -40,6 +42,9 @@ Route::middleware(['auth'])->group(function (): void {
 
     Route::middleware('can:standings.admin')->prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/', [AdministrationController::class, 'index'])->name('index');
+        Route::get('standing-requests', [AdminStandingRequestController::class, 'index'])->name('standing-requests.index');
+        Route::get('pilots', [PilotController::class, 'index'])->name('pilots.index');
+        Route::get('settings', [AdminSettingsController::class, 'edit'])->name('settings.edit');
         Route::put('standings', [StandingsSourceController::class, 'update'])->name('standings.update');
         Route::post('standings/sync', [StandingsSourceController::class, 'sync'])->name('standings.sync');
         Route::put('standing-requests/{standingRequest}', [AdminStandingRequestController::class, 'update'])->name('standing-requests.update');
