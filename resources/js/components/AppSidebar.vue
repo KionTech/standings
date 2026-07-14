@@ -22,7 +22,7 @@ const page = usePage();
 
 const mainNavItems = computed<NavItem[]>(() => [
     {
-        title: 'Standings',
+        title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
     },

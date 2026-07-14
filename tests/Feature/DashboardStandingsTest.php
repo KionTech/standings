@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\Alliance;
 use App\Models\Character;
 use App\Models\Corporation;
 use App\Models\SourceContact;
@@ -10,7 +11,8 @@ use App\Models\User;
 
 it('shows the source standings and the user characters on the dashboard', function () {
     $user = User::factory()->create();
-    Character::factory()->for($user)->create();
+    Alliance::query()->create(['id' => 3000, 'name' => 'Home Alliance']);
+    Character::factory()->for($user)->create(['alliance_id' => 3000]);
 
     StandingsSource::create(['type' => 'alliance', 'entity_id' => 3000]);
     SourceContact::factory()->count(2)->create();
@@ -20,6 +22,7 @@ it('shows the source standings and the user characters on the dashboard', functi
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('Dashboard')
+            ->where('canViewStandings', true)
             ->has('standings', 2)
             ->has('characters', 1));
 });

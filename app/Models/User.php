@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,6 +14,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Session;
 use InvalidArgumentException;
+use NicolasKion\Esi\Enums\ContactType;
 
 /**
  * @property int $id
@@ -116,4 +118,43 @@ class User extends Authenticatable
         return array_intersect($admin_character_ids, $this->getCharacterIds()) !== [];
     }
 
+    /**
+     * Whether the user may see the source standings. Admins always can; everyone
+     * else needs at least one character that is covered by the source or is blue
+     * (positive standing) directly or via its corporation or alliance.
+     */
+    public function canViewStandings(): bool
+    {
+        if ($this->isStandingsAdmin()) {
+            return true;
+        }
+
+        $source = StandingsSource::current();
+
+        if (! $source instanceof StandingsSource) {
+            return false;
+        }
+
+        $characters = $this->characters;
+
+        if ($characters->contains(fn (Character $character): bool => $source->coversCharacter($character))) {
+            return true;
+        }
+
+        return SourceContact::query()
+            ->where('standing', '>', 0)
+            ->where(function (Builder $query) use ($characters): void {
+                $query
+                    ->orWhere(fn (Builder $query) => $query
+                        ->where('contact_type', ContactType::Character)
+                        ->whereIn('contact_id', $characters->pluck('id')))
+                    ->orWhere(fn (Builder $query) => $query
+                        ->where('contact_type', ContactType::Corporation)
+                        ->whereIn('contact_id', $characters->pluck('corporation_id')->filter()))
+                    ->orWhere(fn (Builder $query) => $query
+                        ->where('contact_type', ContactType::Alliance)
+                        ->whereIn('contact_id', $characters->pluck('alliance_id')->filter()));
+            })
+            ->exists();
+    }
 }

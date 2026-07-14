@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\StandingRequestStatus;
 use App\Enums\StandingsSourceType;
 use App\Http\Resources\CharacterSyncResource;
 use App\Http\Resources\StandingResource;
@@ -37,6 +38,8 @@ class DashboardController extends Controller
             ->keyBy(fn (StandingRequest $request): string => $request->subject_type->value.':'.$request->subject_id)
             ->map(fn (StandingRequest $request): string => $request->status->value);
 
+        $canViewStandings = $user->canViewStandings();
+
         return Inertia::render('Dashboard', [
             'source' => $source ? [
                 'type' => $source->type->value,
@@ -44,12 +47,13 @@ class DashboardController extends Controller
                 'entity_name' => $source->entityName(),
                 'last_synced_at' => $source->last_synced_at?->toIso8601String(),
             ] : null,
-            'standings' => StandingResource::collection(
+            'canViewStandings' => $canViewStandings,
+            'standings' => $canViewStandings ? StandingResource::collection(
                 SourceContact::query()
                     ->orderByDesc('standing')
                     ->orderBy('contact_type')
                     ->get()
-            )->resolve(),
+            )->resolve() : null,
             'characters' => CharacterSyncResource::collection($characters)->resolve(),
             'requestableOptions' => $this->requestableOptions($characters, $source, $requestStatuses),
         ]);
@@ -62,7 +66,7 @@ class DashboardController extends Controller
      * displayed standings list.
      *
      * @param  Collection<int, Character>  $characters
-     * @param  Collection<string, string>  $requestStatuses
+     * @param  Collection<string, value-of<StandingRequestStatus>>  $requestStatuses
      * @return array<int, array{type: string, id: int, name: string|null, via_character_id: int, status: string|null}>
      */
     private function requestableOptions(Collection $characters, ?StandingsSource $source, Collection $requestStatuses): array

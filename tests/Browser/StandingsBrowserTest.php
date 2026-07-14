@@ -42,7 +42,8 @@ it('shows the standings hub with the user characters', function () {
 
 it('shows the source standings overview with resolved names', function () {
     $user = User::factory()->create();
-    Character::factory()->for($user)->create();
+    Alliance::query()->create(['id' => 3000, 'name' => 'Home Alliance']);
+    Character::factory()->for($user)->create(['alliance_id' => 3000]);
 
     StandingsSource::create(['type' => 'alliance', 'entity_id' => 3000]);
     SourceContact::factory()->create([
@@ -143,7 +144,7 @@ it('marks a request option that is already in the standings list', function () {
     Corporation::query()->create(['id' => 2000, 'name' => 'Blue Corp']);
     Character::factory()->for($user)->create(['name' => 'Pilot', 'corporation_id' => 2000]);
     StandingsSource::create(['type' => 'character', 'entity_id' => 999]);
-    SourceContact::factory()->create(['contact_type' => 'corporation', 'contact_id' => 2000, 'name' => 'Blue Corp']);
+    SourceContact::factory()->create(['contact_type' => 'corporation', 'contact_id' => 2000, 'name' => 'Blue Corp', 'standing' => 5]);
 
     $this->actingAs($user);
 

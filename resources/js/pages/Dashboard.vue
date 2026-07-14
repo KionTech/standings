@@ -33,7 +33,7 @@ import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
 import { Head, router, usePoll } from '@inertiajs/vue3';
 import { useNow } from '@vueuse/core';
-import { Plus, RefreshCw, Star } from '@lucide/vue';
+import { Lock, Plus, RefreshCw, Star } from '@lucide/vue';
 import { computed } from 'vue';
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
@@ -81,13 +81,14 @@ const props = defineProps<{
         entity_name: string | null;
         last_synced_at: string | null;
     } | null;
-    standings: Standing[];
+    canViewStandings: boolean;
+    standings: Standing[] | null;
     characters: SyncCharacter[];
     requestableOptions: RequestOption[];
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Standings', href: dashboard() },
+    { title: 'Dashboard', href: dashboard() },
 ];
 
 const { getInitials } = useInitials();
@@ -119,7 +120,7 @@ function typeRank(type: string): number {
 }
 
 const sortedStandings = computed(() =>
-    [...props.standings].sort(
+    [...(props.standings ?? [])].sort(
         (a, b) =>
             b.standing - a.standing ||
             typeRank(a.contact_type) - typeRank(b.contact_type),
@@ -160,7 +161,7 @@ function requestStanding(option: RequestOption): void {
 
 // Whether an entity is already in the current standings list shown on this page.
 function hasStanding(option: RequestOption): boolean {
-    return props.standings.some(
+    return (props.standings ?? []).some(
         (standing) =>
             standing.contact_type === option.type &&
             standing.contact_id === option.id,
@@ -232,7 +233,7 @@ function optionStatusLabel(option: RequestOption): string | null {
                 </CardHeader>
                 <CardContent>
                     <dl class="grid gap-3 text-sm sm:grid-cols-3">
-                        <div>
+                        <div v-if="standings">
                             <dt class="text-muted-foreground">Standings</dt>
                             <dd class="font-medium">{{ standings.length }}</dd>
                         </div>
@@ -262,8 +263,21 @@ function optionStatusLabel(option: RequestOption): string | null {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
+                    <div
+                        v-if="!canViewStandings"
+                        class="flex flex-col items-center gap-2 py-10 text-center"
+                    >
+                        <Lock class="h-5 w-5 text-muted-foreground" />
+                        <p class="text-sm font-medium">Standings are hidden</p>
+                        <p class="max-w-sm text-sm text-muted-foreground">
+                            None of your characters is eligible yet. Request a
+                            standing for a character, corporation or alliance
+                            below — once an admin approves it, the standings
+                            unlock.
+                        </p>
+                    </div>
                     <p
-                        v-if="standings.length === 0"
+                        v-else-if="!standings || standings.length === 0"
                         class="py-8 text-center text-sm text-muted-foreground"
                     >
                         No standings have been pulled from the source yet.
