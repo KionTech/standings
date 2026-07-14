@@ -41,7 +41,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { useNow } from '@vueuse/core';
-import { RefreshCw } from '@lucide/vue';
+import { Mail, RefreshCw } from '@lucide/vue';
 import { computed, ref } from 'vue';
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
@@ -63,9 +63,14 @@ const props = defineProps<{
         last_synced_at: string | null;
     } | null;
     sourceTypes: SourceTypeOption[];
-    adminCharacter: { id: number; name: string } | null;
+    adminCharacter: {
+        id: number;
+        name: string;
+        has_mail_scope: boolean;
+    } | null;
     contactsCount: number;
     discordSettings: { webhook_url: string | null; role_id: string | null };
+    grantMailScopeUrl: string;
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -350,6 +355,45 @@ function subjectImage(type: string, id: number): string {
                         </dl>
                         <p v-else class="text-sm text-muted-foreground">
                             No source is configured yet.
+                        </p>
+
+                        <div
+                            v-if="
+                                adminCharacter && !adminCharacter.has_mail_scope
+                            "
+                            class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/40 px-4 py-3"
+                        >
+                            <div class="flex items-start gap-3 text-sm">
+                                <Mail
+                                    class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                                />
+                                <p class="text-muted-foreground">
+                                    <span class="font-medium text-foreground">
+                                        In-game expiry mail is off.
+                                    </span>
+                                    Grant the mail permission so pilots whose
+                                    tokens expired get an EVE mail asking them
+                                    to re-authenticate.
+                                </p>
+                            </div>
+                            <Button
+                                as-child
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                            >
+                                <a :href="grantMailScopeUrl">
+                                    Grant mail permission
+                                </a>
+                            </Button>
+                        </div>
+                        <p
+                            v-else-if="adminCharacter"
+                            class="mt-4 flex items-center gap-2 text-xs text-muted-foreground"
+                        >
+                            <Mail class="h-3.5 w-3.5" />
+                            In-game expiry mail is enabled for
+                            {{ adminCharacter.name }}.
                         </p>
                     </CardContent>
                 </Card>

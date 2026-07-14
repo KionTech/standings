@@ -16,6 +16,7 @@ use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
+use NicolasKion\Esi\Enums\EsiScope;
 
 class SettingsController extends Controller
 {
@@ -41,7 +42,18 @@ class SettingsController extends Controller
                         'available' => $entity_id !== null && $admin->hasEsiTokenWithScope($type->requiredScope()),
                     ];
                 })->values(),
-            'adminCharacter' => ['id' => $admin->id, 'name' => $admin->name],
+            'adminCharacter' => [
+                'id' => $admin->id,
+                'name' => $admin->name,
+                'has_mail_scope' => $admin->hasEsiTokenWithScope(EsiScope::SendMail),
+            ],
+            'grantMailScopeUrl' => route('login', [
+                'add_to_account' => 1,
+                'scopes' => implode(',', array_map(
+                    static fn (EsiScope $scope): string => $scope->value,
+                    config('services.eveonline.admin_scopes', []),
+                )),
+            ]),
             'contactsCount' => SourceContact::query()->count(),
             'discordSettings' => [
                 'webhook_url' => DiscordSetting::current()->webhook_url,

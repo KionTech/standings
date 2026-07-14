@@ -63,6 +63,19 @@ return [
             EsiScope::WriteCharacterContacts,
             EsiScope::ReadCorporationContacts,
             EsiScope::ReadAllianceContacts,
+        ],
+
+        /*
+         * Scopes for the admin's source character. Includes in-game mail so the
+         * app can remind pilots whose tokens expired. Granted through the
+         * dedicated link on the admin settings page, never at normal login.
+         */
+        'admin_scopes' => [
+            EsiScope::PublicData,
+            EsiScope::ReadCharacterContacts,
+            EsiScope::WriteCharacterContacts,
+            EsiScope::ReadCorporationContacts,
+            EsiScope::ReadAllianceContacts,
             EsiScope::SendMail,
         ],
     ],
