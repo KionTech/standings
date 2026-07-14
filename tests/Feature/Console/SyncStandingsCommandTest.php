@@ -14,6 +14,12 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use NicolasKion\Esi\Enums\EsiScope;
 
+beforeEach(function () {
+    // Pin the clock outside EVE's daily downtime window (11:00-11:15 UTC) so
+    // the command's downtime guard never trips depending on when tests run.
+    Carbon::setTestNow(Carbon::parse('2026-06-25 14:00:00', 'UTC'));
+});
+
 afterEach(function () {
     Carbon::setTestNow();
 });

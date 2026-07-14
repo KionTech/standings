@@ -9,9 +9,20 @@ use App\Models\Corporation;
 use App\Models\SourceContact;
 use App\Models\StandingsSource;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use NicolasKion\Esi\Enums\EsiScope;
+
+beforeEach(function () {
+    // Pin the clock outside EVE's daily downtime window (11:00-11:15 UTC) so
+    // the sync command's downtime guard never trips depending on when tests run.
+    Carbon::setTestNow(Carbon::parse('2026-06-25 14:00:00', 'UTC'));
+});
+
+afterEach(function () {
+    Carbon::setTestNow();
+});
 
 /**
  * Create a user who owns the configured admin character, with a corp and alliance.
