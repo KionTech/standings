@@ -20,6 +20,11 @@ class MainCharacterController extends Controller
         $user = Auth::user();
 
         $user->mainCharacter()->associate($character);
+
+        if ($user->setup_completed_at === null) {
+            $user->setup_completed_at = now()->toImmutable();
+        }
+
         $user->save();
 
         return back()->with('success', sprintf('%s is now your main character.', $character->name));

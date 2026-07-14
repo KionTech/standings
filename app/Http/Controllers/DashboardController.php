@@ -41,6 +41,7 @@ class DashboardController extends Controller
         $canViewStandings = $user->canViewStandings();
 
         return Inertia::render('Dashboard', [
+            'showSetupWizard' => $user->needsSetup(),
             'source' => $source ? [
                 'type' => $source->type->value,
                 'entity_id' => $source->entity_id,

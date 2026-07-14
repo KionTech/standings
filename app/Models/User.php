@@ -20,6 +20,7 @@ use NicolasKion\Esi\Enums\ContactType;
  * @property int $id
  * @property string $name
  * @property int|null $main_character_id
+ * @property CarbonImmutable|null $setup_completed_at
  * @property string $remember_token
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $updated_at
@@ -36,6 +37,15 @@ class User extends Authenticatable
     protected $hidden = [
         'remember_token',
     ];
+
+    /**
+     * Whether the first-login setup wizard should be shown: the user has not
+     * picked a main character yet and has not completed or skipped the wizard.
+     */
+    public function needsSetup(): bool
+    {
+        return $this->main_character_id === null && $this->setup_completed_at === null;
+    }
 
     public function getAuthPassword(): string
     {
@@ -156,5 +166,15 @@ class User extends Authenticatable
                         ->whereIn('contact_id', $characters->pluck('alliance_id')->filter()));
             })
             ->exists();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'setup_completed_at' => 'immutable_datetime',
+        ];
     }
 }

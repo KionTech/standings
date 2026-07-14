@@ -22,6 +22,17 @@ class UserFactory extends Factory
         return [
             'name' => fake()->name(),
             'remember_token' => Str::random(10),
+            'setup_completed_at' => now(),
         ];
+    }
+
+    /**
+     * A user who has not been through the first-login setup wizard yet.
+     */
+    public function withoutSetup(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'setup_completed_at' => null,
+        ]);
     }
 }

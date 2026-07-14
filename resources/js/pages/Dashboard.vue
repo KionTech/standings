@@ -5,6 +5,7 @@ import {
 } from '@/actions/App/Http/Controllers/CharacterSyncController';
 import { update as setMainCharacterAction } from '@/actions/App/Http/Controllers/MainCharacterController';
 import { store as requestStandingAction } from '@/actions/App/Http/Controllers/StandingRequestController';
+import SetupWizard from '@/components/SetupWizard.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -75,6 +76,7 @@ type SyncCharacter = {
 };
 
 const props = defineProps<{
+    showSetupWizard: boolean;
     source: {
         type: string;
         entity_id: number;
@@ -197,6 +199,7 @@ function optionStatusLabel(option: RequestOption): string | null {
     <Head title="Standings" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
+        <SetupWizard v-if="showSetupWizard" :characters="characters" />
         <div class="flex flex-1 flex-col gap-6 p-4">
             <!-- Source -->
             <Card>
