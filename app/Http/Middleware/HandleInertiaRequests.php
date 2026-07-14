@@ -69,8 +69,8 @@ class HandleInertiaRequests extends Middleware
                         ->get(['id', 'name'])
                         ->map(fn ($character): array => ['id' => $character->id, 'name' => $character->name])
                         ->all(),
-                    'active_character' => (new CharacterResource($user->getActiveCharacter()))->resolve(),
-                    'characters' => CharacterResource::collection($user->characters)->resolve(),
+                    'active_character' => new CharacterResource($user->getActiveCharacter()),
+                    'characters' => CharacterResource::collection($user->characters),
                 ];
             },
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',

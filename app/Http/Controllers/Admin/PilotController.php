@@ -73,8 +73,8 @@ class PilotController extends Controller
                         'id' => $character->id,
                         'name' => $character->name,
                         'is_main' => $character->id === $user->main_character_id,
-                        'corporation' => $character->corporation ? (new EntitySummaryResource($character->corporation))->resolve() : null,
-                        'alliance' => $character->alliance ? (new EntitySummaryResource($character->alliance))->resolve() : null,
+                        'corporation' => $character->corporation ? new EntitySummaryResource($character->corporation) : null,
+                        'alliance' => $character->alliance ? new EntitySummaryResource($character->alliance) : null,
                     ])->all(),
             ]);
     }

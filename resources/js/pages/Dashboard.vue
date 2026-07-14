@@ -47,6 +47,11 @@ type Standing = {
     contact_type: string;
     name: string | null;
     standing: number;
+    redundant_via: {
+        contact_type: string;
+        contact_id: number;
+        name: string | null;
+    } | null;
 };
 
 type EntitySummary = {
@@ -315,9 +320,22 @@ function optionStatusLabel(option: RequestOption): string | null {
                                     {{ standing.contact_type.slice(0, 2) }}
                                 </AvatarFallback>
                             </Avatar>
-                            <span class="flex-1 truncate text-sm font-medium">
-                                {{ standing.name ?? standing.contact_id }}
-                            </span>
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-sm font-medium">
+                                    {{ standing.name ?? standing.contact_id }}
+                                </p>
+                                <p
+                                    v-if="standing.redundant_via"
+                                    class="truncate text-xs text-amber-600 dark:text-amber-400"
+                                    :title="`This standing already applies through the ${standing.redundant_via.contact_type} and can be removed from the source.`"
+                                >
+                                    Redundant via
+                                    {{
+                                        standing.redundant_via.name ??
+                                        standing.redundant_via.contact_id
+                                    }}
+                                </p>
+                            </div>
                             <span
                                 class="flex-1 truncate text-xs text-muted-foreground capitalize"
                             >

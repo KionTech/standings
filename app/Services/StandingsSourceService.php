@@ -11,11 +11,15 @@ use App\Models\SourceContact;
 use App\Models\StandingRequest;
 use App\Models\StandingsSource;
 use Illuminate\Support\Facades\DB;
+use NicolasKion\Esi\Enums\ContactType;
 use NicolasKion\Esi\Esi;
 
 class StandingsSourceService
 {
-    public function __construct(private readonly Esi $esi) {}
+    public function __construct(
+        private readonly Esi $esi,
+        private readonly EveEntityService $entities,
+    ) {}
 
     /**
      * Re-fetch the configured source's contacts and store them as the canonical
@@ -73,7 +77,7 @@ class StandingsSourceService
     /**
      * Store the fetched contacts as the canonical standings. Returns whether the
      * standings (contact ids + values) actually changed. When unchanged, no work
-     * is done — including skipping the name-resolution request — to save calls.
+     * is done — including skipping the entity-resolution requests — to save calls.
      *
      * @param  \NicolasKion\Esi\DTO\Contact[]  $contacts
      */
@@ -94,7 +98,6 @@ class StandingsSourceService
         }
 
         $contact_ids = array_keys($incoming);
-        $names = $this->resolveNames($contact_ids);
 
         $rows = [];
 
@@ -102,7 +105,6 @@ class StandingsSourceService
             $rows[] = [
                 'contact_id' => $contact->contact_id,
                 'contact_type' => $contact->contact_type->value,
-                'name' => $names[$contact->contact_id] ?? null,
                 'standing' => $contact->standing,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -115,13 +117,41 @@ class StandingsSourceService
                 ->delete();
 
             if ($rows !== []) {
-                SourceContact::query()->upsert($rows, ['contact_id'], ['contact_type', 'name', 'standing', 'updated_at']);
+                SourceContact::query()->upsert($rows, ['contact_id'], ['contact_type', 'standing', 'updated_at']);
             }
         });
+
+        $this->storeContactEntities($contacts);
 
         $this->markFulfilledRequestsDone();
 
         return true;
+    }
+
+    /**
+     * Store the contacts' entities locally; contact names and affiliations
+     * resolve from these rows. Corporations only need creating here — keeping
+     * their alliance membership current is the hourly affiliation sync's job.
+     * Factions ship with the SDE seed.
+     *
+     * @param  \NicolasKion\Esi\DTO\Contact[]  $contacts
+     */
+    private function storeContactEntities(array $contacts): void
+    {
+        $ids = [];
+
+        foreach ($contacts as $contact) {
+            $ids[$contact->contact_type->value][] = $contact->contact_id;
+        }
+
+        $character_ids = $ids[ContactType::Character->value] ?? [];
+
+        $this->entities->refreshEntities(
+            $character_ids,
+            $ids[ContactType::Corporation->value] ?? [],
+            $ids[ContactType::Alliance->value] ?? [],
+            $this->resolveNames($character_ids),
+        );
     }
 
     /**
@@ -142,10 +172,10 @@ class StandingsSourceService
         $blueContacts = SourceContact::query()
             ->where('standing', '>', 0)
             ->get(['contact_id', 'contact_type'])
-            ->keyBy(fn (SourceContact $contact): string => $contact->contact_type->value.':'.$contact->contact_id);
+            ->keyBy(fn (SourceContact $contact): string => $contact->key());
 
         $fulfilledIds = $pending
-            ->filter(fn (StandingRequest $request): bool => $blueContacts->has($request->subject_type->value.':'.$request->subject_id))
+            ->filter(fn (StandingRequest $request): bool => $blueContacts->has(SourceContact::keyFor($request->subject_type, $request->subject_id)))
             ->pluck('id');
 
         if ($fulfilledIds->isNotEmpty()) {
@@ -164,7 +194,7 @@ class StandingsSourceService
         }
 
         foreach ($incoming as $id => $standing) {
-            if (! array_key_exists($id, $existing) || abs($existing[$id] - $standing) >= 0.01) {
+            if (! array_key_exists($id, $existing) || abs($existing[$id] - $standing) >= SourceContact::STANDING_EPSILON) {
                 return true;
             }
         }

@@ -9,14 +9,17 @@ use App\Enums\StandingsSourceType;
 use App\Http\Resources\CharacterSyncResource;
 use App\Http\Resources\StandingResource;
 use App\Models\Character;
+use App\Models\Corporation;
 use App\Models\SourceContact;
 use App\Models\StandingRequest;
 use App\Models\StandingsSource;
 use App\Models\User;
 use Illuminate\Container\Attributes\CurrentUser;
+use Illuminate\Http\Resources\Json\ResourceCollection;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
+use NicolasKion\Esi\Enums\ContactType;
 
 class DashboardController extends Controller
 {
@@ -35,7 +38,7 @@ class DashboardController extends Controller
         ));
 
         $requestStatuses = StandingRequest::query()->get(['subject_type', 'subject_id', 'status'])
-            ->keyBy(fn (StandingRequest $request): string => $request->subject_type->value.':'.$request->subject_id)
+            ->keyBy(fn (StandingRequest $request): string => SourceContact::keyFor($request->subject_type, $request->subject_id))
             ->map(fn (StandingRequest $request): string => $request->status->value);
 
         $canViewStandings = $user->canViewStandings();
@@ -49,15 +52,73 @@ class DashboardController extends Controller
                 'last_synced_at' => $source->last_synced_at?->toIso8601String(),
             ] : null,
             'canViewStandings' => $canViewStandings,
-            'standings' => $canViewStandings ? StandingResource::collection(
-                SourceContact::query()
-                    ->orderByDesc('standing')
-                    ->orderBy('contact_type')
-                    ->get()
-            )->resolve() : null,
-            'characters' => CharacterSyncResource::collection($characters)->resolve(),
+            'standings' => $canViewStandings ? $this->standings() : null,
+            'characters' => CharacterSyncResource::collection($characters),
             'requestableOptions' => $this->requestableOptions($characters, $source, $requestStatuses),
         ]);
+    }
+
+    /**
+     * The source contacts, each flagged with the parent contact that makes it
+     * redundant, if any.
+     */
+    private function standings(): ResourceCollection
+    {
+        $contacts = SourceContact::query()
+            ->with('entity')
+            ->orderByDesc('standing')
+            ->orderBy('contact_type')
+            ->get();
+
+        $this->flagRedundantStandings($contacts);
+
+        return StandingResource::collection($contacts);
+    }
+
+    /**
+     * Flag contacts whose standing is redundant because a parent entity covers
+     * it — a character covered by its corporation or alliance, or a corporation
+     * covered by its alliance. Affiliations come from the locally stored
+     * entities, which the sync keeps up to date.
+     *
+     * @param  Collection<int, SourceContact>  $contacts
+     */
+    private function flagRedundantStandings(Collection $contacts): void
+    {
+        $byKey = $contacts->keyBy(fn (SourceContact $contact): string => $contact->key());
+
+        foreach ($contacts as $contact) {
+            $entity = $contact->entity;
+
+            $parents = match (true) {
+                $entity instanceof Character => [
+                    [ContactType::Corporation, $entity->corporation_id],
+                    [ContactType::Alliance, $entity->alliance_id],
+                ],
+                $entity instanceof Corporation => [
+                    [ContactType::Alliance, $entity->alliance_id],
+                ],
+                default => [],
+            };
+
+            foreach ($parents as [$parentType, $parentId]) {
+                if ($parentId === null) {
+                    continue;
+                }
+
+                $parent = $byKey->get(SourceContact::keyFor($parentType, $parentId));
+
+                if ($parent instanceof SourceContact && $parent->coversStanding($contact)) {
+                    $contact->setAttribute('redundant_via', [
+                        'contact_type' => $parentType->value,
+                        'contact_id' => $parent->contact_id,
+                        'name' => $parent->name,
+                    ]);
+
+                    break;
+                }
+            }
+        }
     }
 
     /**
@@ -100,7 +161,7 @@ class DashboardController extends Controller
                     continue;
                 }
 
-                $key = $type->value.':'.$id;
+                $key = SourceContact::keyFor($type, $id);
 
                 if (isset($seen[$key])) {
                     continue;

@@ -19,7 +19,6 @@ it('resolves a standing set directly on the entity', function () {
         'contact_type' => 'character',
         'contact_id' => $character->id,
         'standing' => 7,
-        'name' => 'Direct Pilot',
     ]);
     $request = StandingRequest::factory()->create([
         'subject_type' => 'character',
@@ -42,7 +41,6 @@ it('inherits a standing from the requesting characters corporation', function ()
         'contact_type' => 'corporation',
         'contact_id' => 4000,
         'standing' => 5,
-        'name' => 'Blue Corp',
     ]);
     $request = StandingRequest::factory()->create([
         'subject_type' => 'character',

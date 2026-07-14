@@ -22,6 +22,7 @@ class StandingResource extends JsonResource
             'contact_type' => $this->contact_type->value,
             'name' => $this->name,
             'standing' => $this->standing,
+            'redundant_via' => $this->redundant_via,
         ];
     }
 }

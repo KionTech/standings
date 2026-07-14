@@ -21,7 +21,7 @@ class EffectiveStandingResolver
     public function __construct()
     {
         $this->contacts = SourceContact::query()->get()
-            ->keyBy(fn (SourceContact $contact): string => $contact->contact_type->value.':'.$contact->contact_id);
+            ->keyBy(fn (SourceContact $contact): string => $contact->key());
     }
 
     /**
@@ -36,7 +36,7 @@ class EffectiveStandingResolver
     public function resolve(StandingRequest $request): ?array
     {
         foreach ($this->chainFor($request) as [$source, $type, $id]) {
-            $contact = $this->contacts->get($type->value.':'.$id);
+            $contact = $this->contacts->get(SourceContact::keyFor($type, $id));
 
             if ($contact instanceof SourceContact) {
                 return [

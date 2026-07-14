@@ -126,6 +126,7 @@ it('queues a sync for opted-in characters when the admin clicks sync now', funct
         'esi.evetech.net/universe/names/*' => Http::response([
             ['category' => 'character', 'id' => 100, 'name' => 'Contact One'],
         ], 200),
+        ...esiAffiliationFakes(100, 2001, corporation_name: 'Contact Corp'),
     ]);
 
     $this->actingAs($user)

@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\DTO\EveSocialiteUser;
-use App\Models\Alliance;
 use App\Models\Character;
-use App\Models\Corporation;
 use App\Models\EsiScope;
 use App\Models\User;
 use Exception;
@@ -21,6 +19,7 @@ readonly class EsiAuthService
 {
     public function __construct(
         private Esi $esi,
+        private EveEntityService $entities,
     ) {}
 
     /**
@@ -77,7 +76,7 @@ readonly class EsiAuthService
 
     public function resolveCharacter(EveSocialiteUser $socialite_user, CharacterAffiliation $affiliation): Character
     {
-        $this->ensureAffiliationsExist($affiliation);
+        $this->entities->ensureAffiliationsExist($affiliation);
 
         return Character::query()->updateOrCreate([
             'id' => $socialite_user->character_id,
@@ -154,81 +153,5 @@ readonly class EsiAuthService
         if (! $previous_user->characters()->exists()) {
             $previous_user->delete();
         }
-    }
-
-    private function ensureAffiliationsExist(CharacterAffiliation $affiliation): void
-    {
-        if ($affiliation->alliance_id) {
-            $this->ensureAlliance($affiliation->alliance_id);
-        }
-
-        $this->ensureCorporation($affiliation->corporation_id);
-    }
-
-    /**
-     * Make sure the alliance exists locally, fetching its public details from
-     * ESI the first time we see it. Only non-foreign-key columns are stored.
-     */
-    private function ensureAlliance(int $id): void
-    {
-        $alliance = Alliance::query()->firstOrNew(['id' => $id]);
-
-        if ($alliance->exists && $alliance->name !== null) {
-            return;
-        }
-
-        $alliance->id = $id;
-
-        $result = $this->esi->getAlliance($id);
-
-        if ($result->wasSuccessful()) {
-            $alliance->fill([
-                'name' => $result->data->name,
-                'ticker' => $result->data->ticker,
-                'date_founded' => $result->data->date_founded,
-            ]);
-        }
-
-        $alliance->save();
-    }
-
-    /**
-     * Make sure the corporation exists locally, fetching its public details from
-     * ESI the first time we see it. Only non-foreign-key columns are stored.
-     */
-    private function ensureCorporation(int $id): void
-    {
-        $corporation = Corporation::query()->firstOrNew(['id' => $id]);
-
-        if ($corporation->exists && $corporation->name !== null) {
-            return;
-        }
-
-        $corporation->id = $id;
-
-        $result = $this->esi->getCorporation($id);
-
-        if ($result->wasSuccessful()) {
-            $alliance_id = $result->data->alliance_id ?: null;
-
-            if ($alliance_id) {
-                $this->ensureAlliance($alliance_id);
-            }
-
-            $corporation->fill([
-                'name' => $result->data->name,
-                'ticker' => $result->data->ticker,
-                'member_count' => $result->data->member_count,
-                'tax_rate' => $result->data->tax_rate,
-                'war_eligible' => $result->data->war_eligible,
-                'date_founded' => $result->data->date_founded,
-                'description' => $result->data->description,
-                'url' => $result->data->url,
-                'shares' => $result->data->shares,
-                'alliance_id' => $alliance_id,
-            ]);
-        }
-
-        $corporation->save();
     }
 }

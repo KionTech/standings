@@ -17,7 +17,7 @@ it('passes the inherited effective standing for each request to the admin consol
     config(['services.eveonline.admin_character_ids' => [$admin->id]]);
 
     StandingsSource::create(['type' => 'character', 'entity_id' => 999]);
-    SourceContact::factory()->create(['contact_type' => 'corporation', 'contact_id' => 4000, 'standing' => 5, 'name' => 'Blue Corp']);
+    SourceContact::factory()->create(['contact_type' => 'corporation', 'contact_id' => 4000, 'standing' => 5]);
 
     StandingRequest::factory()->create([
         'subject_type' => 'character',

@@ -28,7 +28,7 @@ class SettingsController extends Controller
         $admin = $user->getActiveCharacter()->loadMissing(['corporation:id,name', 'alliance:id,name']);
 
         return Inertia::render('admin/Settings', [
-            'source' => $source ? (new StandingsSourceSummaryResource($source))->resolve() : null,
+            'source' => $source ? new StandingsSourceSummaryResource($source) : null,
             'sourceTypes' => collect(StandingsSourceType::cases())
                 ->map(function (StandingsSourceType $type) use ($admin): array {
                     [$entity_id, $entity_name] = $this->resolveAdminEntity($admin, $type);

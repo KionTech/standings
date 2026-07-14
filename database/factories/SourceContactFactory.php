@@ -21,7 +21,6 @@ class SourceContactFactory extends Factory
         return [
             'contact_id' => fake()->unique()->numberBetween(90_000_000, 2_200_000_000),
             'contact_type' => fake()->randomElement(ContactType::cases()),
-            'name' => fake()->company(),
             'standing' => fake()->randomElement([-10, -5, 0, 5, 10]),
         ];
     }

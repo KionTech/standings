@@ -40,14 +40,14 @@ class AdministrationController extends Controller
         ));
 
         return Inertia::render('admin/Overview', [
-            'source' => $source ? (new StandingsSourceSummaryResource($source))->resolve() : null,
+            'source' => $source ? new StandingsSourceSummaryResource($source) : null,
             'stats' => [
                 'pending_requests' => StandingRequest::query()->where('status', StandingRequestStatus::Pending)->count(),
                 'pilots' => User::query()->count(),
                 'syncing_characters' => Character::query()->whereNotNull('user_id')->where('should_sync', true)->count(),
                 'source_contacts' => SourceContact::query()->count(),
             ],
-            'recentRequests' => StandingRequestResource::collection($recentRequests)->resolve(),
+            'recentRequests' => StandingRequestResource::collection($recentRequests),
         ]);
     }
 }

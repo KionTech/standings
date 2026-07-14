@@ -32,10 +32,10 @@ class StandingRequestController extends Controller
             ->latest()
             ->paginate(25)
             ->withQueryString()
-            ->through(function (StandingRequest $standingRequest) use ($resolver): array {
+            ->through(function (StandingRequest $standingRequest) use ($resolver): StandingRequestResource {
                 $standingRequest->setAttribute('effective_standing', $resolver->resolve($standingRequest));
 
-                return (new StandingRequestResource($standingRequest))->resolve();
+                return new StandingRequestResource($standingRequest);
             });
 
         /** @var object{pending: int, done: int, rejected: int}|null $counts */

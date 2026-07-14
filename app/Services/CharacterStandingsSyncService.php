@@ -23,11 +23,6 @@ class CharacterStandingsSyncService
      */
     private const int DELETE_CHUNK = 20;
 
-    /**
-     * Standings are considered equal within this tolerance.
-     */
-    private const float STANDING_EPSILON = 0.01;
-
     public function __construct(private readonly Esi $esi) {}
 
     /**
@@ -65,7 +60,7 @@ class CharacterStandingsSyncService
         foreach ($desired as $contact_id => $standing) {
             if (! array_key_exists($contact_id, $current)) {
                 $toAdd[(string) $standing][] = $contact_id;
-            } elseif (abs($current[$contact_id] - $standing) >= self::STANDING_EPSILON) {
+            } elseif (abs($current[$contact_id] - $standing) >= SourceContact::STANDING_EPSILON) {
                 $toEdit[(string) $standing][] = $contact_id;
             }
         }

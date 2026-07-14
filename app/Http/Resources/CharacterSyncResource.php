@@ -26,8 +26,8 @@ class CharacterSyncResource extends JsonResource
             'has_write_scope' => $this->hasEsiTokenWithScope(EsiScope::WriteCharacterContacts),
             'inherits_source' => (bool) $this->inherits_source,
             'synced_contacts_count' => $this->synced_contacts_count,
-            'corporation' => $this->whenLoaded('corporation', fn () => $this->corporation ? (new EntitySummaryResource($this->corporation))->resolve($request) : null),
-            'alliance' => $this->whenLoaded('alliance', fn () => $this->alliance ? (new EntitySummaryResource($this->alliance))->resolve($request) : null),
+            'corporation' => $this->whenLoaded('corporation', fn () => $this->corporation ? new EntitySummaryResource($this->corporation) : null),
+            'alliance' => $this->whenLoaded('alliance', fn () => $this->alliance ? new EntitySummaryResource($this->alliance) : null),
         ];
     }
 }
