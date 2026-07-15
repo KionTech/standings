@@ -7,9 +7,9 @@ use App\Models\StandingsSource;
 use App\Models\User;
 use NicolasKion\Esi\Enums\EsiScope;
 
-it('flags characters missing the write-contacts token', function () {
+it('flags opted-in characters missing the write-contacts token', function () {
     $user = User::factory()->create();
-    Character::factory()->for($user)->create(['name' => 'Tokenless']);
+    Character::factory()->for($user)->create(['name' => 'Tokenless', 'should_sync' => true]);
 
     $this->actingAs($user)
         ->get(route('dashboard'))
@@ -17,9 +17,18 @@ it('flags characters missing the write-contacts token', function () {
             ->where('auth.reauth_characters.0.name', 'Tokenless'));
 });
 
+it('does not flag a scopeless character that never opted into syncing', function () {
+    $user = User::factory()->create();
+    Character::factory()->for($user)->create(['should_sync' => false]);
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertInertia(fn ($page) => $page->where('auth.reauth_characters', []));
+});
+
 it('does not flag a character that has the write-contacts token', function () {
     $user = User::factory()->create();
-    $character = Character::factory()->for($user)->create();
+    $character = Character::factory()->for($user)->create(['should_sync' => true]);
     grantScopes($character, EsiScope::WriteCharacterContacts);
 
     $this->actingAs($user)

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Models\Character;
+use App\Support\EveSso;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use NicolasKion\Esi\DTO\EveMailRecipient;
@@ -28,15 +29,15 @@ class SendTokenExpiredMail implements ShouldQueue
         }
 
         $body = sprintf(
-            "Hello %s,\n\nYour ESI token for the standing bot has expired. Please re-authenticate your character here:\n%s\n\nso the service won't get interrupted.",
+            "Hello %s,\n\nYour contact permissions for Bluebook have lapsed, so your standings can't be synced. Please grant them again here:\n%s\n\nso the service won't get interrupted.",
             $recipient->name,
-            route('login'),
+            EveSso::grantScopesUrl('services.eveonline.sync_scopes'),
         );
 
         $esi->sendMail(
             $sender,
             [new EveMailRecipient($recipient->id, RecipientType::Character)],
-            'Standing bot — re-authentication required',
+            'Bluebook — re-authentication required',
             $body,
         );
     }

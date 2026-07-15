@@ -1,6 +1,6 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "kiontech/standings",
+    "name": "kiontech/bluebook",
     "type": "project",
     "description": "Automatically sync EVE Online standings from a single source onto every registered character.",
     "keywords": [

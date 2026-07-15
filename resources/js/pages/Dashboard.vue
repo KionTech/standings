@@ -32,9 +32,9 @@ import { eveImage, standingLabel, standingTextClass } from '@/lib/eve';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
-import { Head, router, usePoll } from '@inertiajs/vue3';
+import { Head, router, usePage, usePoll } from '@inertiajs/vue3';
 import { useNow } from '@vueuse/core';
-import { Lock, Plus, RefreshCw, Star } from '@lucide/vue';
+import { KeyRound, Lock, Plus, RefreshCw, Star } from '@lucide/vue';
 import { computed } from 'vue';
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
@@ -99,6 +99,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const { getInitials } = useInitials();
+
+const page = usePage();
+const syncScopesUrl = computed(() => page.props.auth.sync_scopes_url);
 
 // A clock that ticks every second so the relative times stay live.
 const now = useNow({ interval: 1000 });
@@ -558,11 +561,11 @@ function optionStatusLabel(option: RequestOption): string | null {
                                         Inherits the source
                                     </template>
                                     <template
-                                        v-else-if="!character.has_write_scope"
+                                        v-else-if="
+                                            character.should_sync &&
+                                            character.has_write_scope
+                                        "
                                     >
-                                        No write permission
-                                    </template>
-                                    <template v-else-if="character.should_sync">
                                         {{ character.synced_contacts_count }}
                                         synced
                                     </template>
@@ -573,10 +576,18 @@ function optionStatusLabel(option: RequestOption): string | null {
                                 >
                                     Inherited
                                 </Badge>
+                                <a
+                                    v-else-if="!character.has_write_scope"
+                                    :href="syncScopesUrl"
+                                    class="inline-flex items-center gap-1 text-xs font-medium text-amber-600 hover:underline dark:text-amber-400"
+                                    :title="`Grant ${character.name} the contact permissions needed to sync standings`"
+                                >
+                                    <KeyRound class="h-3 w-3" />
+                                    Grant sync access
+                                </a>
                                 <Switch
                                     v-else
                                     :model-value="character.should_sync"
-                                    :disabled="!character.has_write_scope"
                                     :aria-label="`Toggle standings sync for ${character.name}`"
                                     @update:model-value="
                                         (value) =>

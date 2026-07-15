@@ -205,9 +205,10 @@ function finish(): void {
             <!-- Step 3: how syncing works -->
             <div v-else-if="step === 2" class="space-y-4 text-sm">
                 <p>
-                    Each character on the dashboard has a sync switch. Turn it
-                    on and their in-game contacts mirror the alliance's
-                    standings within minutes.
+                    Each character on the dashboard has a sync switch. Grant the
+                    character contact permissions, turn the switch on, and their
+                    in-game contacts mirror the alliance's standings within
+                    minutes.
                 </p>
                 <ul class="space-y-3">
                     <li class="flex items-start gap-3">

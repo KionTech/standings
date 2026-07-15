@@ -8,7 +8,7 @@ const page = usePage();
 </script>
 
 <template>
-    <Head title="Standings" />
+    <Head title="Bluebook" />
 
     <div
         class="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-neutral-950 px-6 text-neutral-200 antialiased"
@@ -31,7 +31,7 @@ const page = usePage();
             </div>
 
             <h1 class="mt-8 text-3xl font-semibold tracking-tight text-white">
-                Standings
+                Bluebook
             </h1>
             <p class="mt-3 text-sm text-neutral-500">Authorized pilots only.</p>
 

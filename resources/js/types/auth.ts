@@ -24,6 +24,8 @@ export type Auth = {
     is_admin: boolean;
     source_unreadable: boolean;
     reauth_characters: { id: number; name: string | null }[];
+    sync_scopes_url: string;
+    admin_scopes_url: string | null;
     active_character: Character;
     characters: Character[];
 };

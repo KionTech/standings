@@ -12,6 +12,7 @@ use App\Models\DiscordSetting;
 use App\Models\SourceContact;
 use App\Models\StandingsSource;
 use App\Models\User;
+use App\Support\EveSso;
 use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -47,13 +48,7 @@ class SettingsController extends Controller
                 'name' => $admin->name,
                 'has_mail_scope' => $admin->hasEsiTokenWithScope(EsiScope::SendMail),
             ],
-            'grantMailScopeUrl' => route('login', [
-                'add_to_account' => 1,
-                'scopes' => implode(',', array_map(
-                    static fn (EsiScope $scope): string => $scope->value,
-                    config('services.eveonline.admin_scopes', []),
-                )),
-            ]),
+            'grantMailScopeUrl' => EveSso::grantScopesUrl('services.eveonline.admin_scopes'),
             'contactsCount' => SourceContact::query()->count(),
             'discordSettings' => [
                 'webhook_url' => DiscordSetting::current()->webhook_url,

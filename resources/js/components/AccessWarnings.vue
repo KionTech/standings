@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { login } from '@/routes';
 import { usePage } from '@inertiajs/vue3';
 import { KeyRound, TriangleAlert } from '@lucide/vue';
 import { computed } from 'vue';
@@ -19,8 +18,6 @@ const reauthCharacters = computed(() =>
 const reauthNames = computed(() =>
     reauthCharacters.value.map((character) => character.name).join(', '),
 );
-
-const reauthUrl = `${login.url()}?add_to_account=1`;
 </script>
 
 <template>
@@ -41,7 +38,7 @@ const reauthUrl = `${login.url()}?add_to_account=1`;
                 </p>
             </div>
             <a
-                :href="reauthUrl"
+                :href="auth.admin_scopes_url ?? undefined"
                 class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90"
             >
                 <KeyRound class="h-4 w-4" />
@@ -61,15 +58,15 @@ const reauthUrl = `${login.url()}?add_to_account=1`;
                 </p>
                 <p class="text-sm opacity-90">
                     <span class="font-medium">{{ reauthNames }}</span> can't
-                    sync standings until re-authenticated.
+                    sync standings until you grant contact permissions.
                 </p>
             </div>
             <a
-                :href="reauthUrl"
+                :href="auth.sync_scopes_url"
                 class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-amber-500/50 px-4 py-2 text-sm font-medium transition hover:bg-amber-500/10"
             >
                 <KeyRound class="h-4 w-4" />
-                Re-authenticate
+                Grant access
             </a>
         </div>
     </div>

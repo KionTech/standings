@@ -11,19 +11,19 @@ use App\Models\User;
 
 it('renders the welcome page without errors', function () {
     visit('/')
-        ->assertSee('Standings')
+        ->assertSee('Bluebook')
         ->assertNoSmoke();
 });
 
-it('shows a re-authentication banner for characters missing tokens', function () {
+it('shows a grant-access banner for synced characters missing scopes', function () {
     $user = User::factory()->create();
-    Character::factory()->for($user)->create(['name' => 'Tokenless']);
+    Character::factory()->for($user)->create(['name' => 'Tokenless', 'should_sync' => true]);
 
     $this->actingAs($user);
 
     visit('/dashboard')
         ->assertSee('need re-authentication')
-        ->assertSee('Re-authenticate')
+        ->assertSee('Grant access')
         ->assertNoSmoke();
 });
 

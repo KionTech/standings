@@ -8,6 +8,7 @@ use App\Http\Resources\CharacterResource;
 use App\Models\StandingsSource;
 use App\Models\User;
 use App\Services\StandingsSourceService;
+use App\Support\EveSso;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use NicolasKion\Esi\Enums\EsiScope;
@@ -64,11 +65,16 @@ class HandleInertiaRequests extends Middleware
                     ],
                     'is_admin' => $isAdmin,
                     'source_unreadable' => $isAdmin && $this->sourceUnreadable(),
+                    // Only characters that opted into syncing need the
+                    // contacts scopes; scopeless registrations are fine.
                     'reauth_characters' => $user->characters()
+                        ->where('should_sync', true)
                         ->whereDoesntHave('esiTokens.esiScopes', fn ($query) => $query->where('name', EsiScope::WriteCharacterContacts))
                         ->get(['id', 'name'])
                         ->map(fn ($character): array => ['id' => $character->id, 'name' => $character->name])
                         ->all(),
+                    'sync_scopes_url' => EveSso::grantScopesUrl('services.eveonline.sync_scopes'),
+                    'admin_scopes_url' => $isAdmin ? EveSso::grantScopesUrl('services.eveonline.admin_scopes') : null,
                     'active_character' => new CharacterResource($user->getActiveCharacter()),
                     'characters' => CharacterResource::collection($user->characters),
                 ];

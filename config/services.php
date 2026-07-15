@@ -57,12 +57,14 @@ return [
             explode(',', (string) env('EVE_ADMIN_CHARACTER_ID', '')),
         ))),
 
-        'required_scopes' => [
-            EsiScope::PublicData,
+        /*
+         * Scopes needed to sync the standings into a character's in-game
+         * contacts. A normal login asks for no scopes at all — these are
+         * granted through the "enable sync" link when a pilot opts in.
+         */
+        'sync_scopes' => [
             EsiScope::ReadCharacterContacts,
             EsiScope::WriteCharacterContacts,
-            EsiScope::ReadCorporationContacts,
-            EsiScope::ReadAllianceContacts,
         ],
 
         /*

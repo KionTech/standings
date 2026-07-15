@@ -1,14 +1,14 @@
 <div align="center">
 
-# Standings
+# Bluebook
 
 **One standings list, every character.**
 
 Sync EVE Online standings from a single source onto the in-game contacts of every registered character.
 
-[![Tests](https://github.com/KionTech/standings/actions/workflows/tests.yml/badge.svg)](https://github.com/KionTech/standings/actions/workflows/tests.yml)
-[![Lint](https://github.com/KionTech/standings/actions/workflows/lint.yml/badge.svg)](https://github.com/KionTech/standings/actions/workflows/lint.yml)
-[![Static Analysis](https://github.com/KionTech/standings/actions/workflows/static.yml/badge.svg)](https://github.com/KionTech/standings/actions/workflows/static.yml)
+[![Tests](https://github.com/KionTech/bluebook/actions/workflows/tests.yml/badge.svg)](https://github.com/KionTech/bluebook/actions/workflows/tests.yml)
+[![Lint](https://github.com/KionTech/bluebook/actions/workflows/lint.yml/badge.svg)](https://github.com/KionTech/bluebook/actions/workflows/lint.yml)
+[![Static Analysis](https://github.com/KionTech/bluebook/actions/workflows/static.yml/badge.svg)](https://github.com/KionTech/bluebook/actions/workflows/static.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Built with Laravel 13, Vue 3, Inertia v3, and Tailwind CSS v4.
@@ -44,7 +44,7 @@ Built with Laravel 13, Vue 3, Inertia v3, and Tailwind CSS v4.
 ## Quickstart
 
 ```bash
-git clone https://github.com/KionTech/standings.git
+git clone https://github.com/KionTech/bluebook.git
 cd standings
 composer setup
 ```

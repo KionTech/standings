@@ -54,19 +54,15 @@ class EveController extends Controller
 
         assert($eve_provider instanceof Provider);
 
-        if ($request->boolean('without_scopes')) {
+        // A normal login is scopeless — identity only, enough to register
+        // characters. Scoped links (enabling standings sync, admin source
+        // access) pass their scopes explicitly.
+        if (! $request->filled('scopes')) {
             return $eve_provider->redirect();
         }
 
         return $eve_provider
-            ->scopes(
-                $request->scopes
-                    ? EsiScope::fromRequest($request->scopes)
-                    : array_map(
-                        static fn (EsiScope $scope) => $scope->value,
-                        config('services.eveonline.required_scopes', [])
-                    )
-            )
+            ->scopes(EsiScope::fromRequest($request->scopes))
             ->redirect();
     }
 }
