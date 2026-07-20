@@ -17,7 +17,7 @@
         "laravel/socialite": "^5.28",
         "laravel/tinker": "^3.0",
         "laravel/wayfinder": "^0.1.20",
-        "nicolaskion/eve": "^0.5",
+        "nicolaskion/eve": "^0.11",
         "nicolaskion/sde": "^0.6",
         "socialiteproviders/eveonline": "^4.4"
     },
