@@ -61,6 +61,53 @@ it('shows the source standings overview with resolved names', function () {
         ->assertNoSmoke();
 });
 
+it('lists standings alphabetically within the same standing and type', function () {
+    $user = User::factory()->create();
+    Alliance::query()->create(['id' => 3000, 'name' => 'Home Alliance']);
+    Character::factory()->for($user)->create(['alliance_id' => 3000]);
+    StandingsSource::create(['type' => 'alliance', 'entity_id' => 3000]);
+
+    Corporation::query()->create(['id' => 4000, 'name' => 'Zebra Corp']);
+    Corporation::query()->create(['id' => 4001, 'name' => 'Alpha Corp']);
+    Corporation::query()->create(['id' => 4002, 'name' => 'Mid Corp']);
+    SourceContact::factory()->create(['contact_type' => 'corporation', 'contact_id' => 4000, 'standing' => 10]);
+    SourceContact::factory()->create(['contact_type' => 'corporation', 'contact_id' => 4001, 'standing' => 10]);
+    SourceContact::factory()->create(['contact_type' => 'corporation', 'contact_id' => 4002, 'standing' => 10]);
+
+    $this->actingAs($user);
+
+    $names = visit('/dashboard')
+        ->assertSee('Alpha Corp')
+        ->assertNoSmoke()
+        ->script("Array.from(document.querySelectorAll('p.truncate.text-sm.font-medium')).map((el) => el.textContent.trim())");
+
+    expect($names)->toBe(['Alpha Corp', 'Mid Corp', 'Zebra Corp']);
+});
+
+it('filters the standings list through the search bar', function () {
+    $user = User::factory()->create();
+    Alliance::query()->create(['id' => 3000, 'name' => 'Home Alliance']);
+    Character::factory()->for($user)->create(['alliance_id' => 3000]);
+    StandingsSource::create(['type' => 'alliance', 'entity_id' => 3000]);
+
+    Corporation::query()->create(['id' => 4000, 'name' => 'Blue Corp']);
+    Corporation::query()->create(['id' => 4001, 'name' => 'Red Corp']);
+    SourceContact::factory()->create(['contact_type' => 'corporation', 'contact_id' => 4000, 'standing' => 10]);
+    SourceContact::factory()->create(['contact_type' => 'corporation', 'contact_id' => 4001, 'standing' => -10]);
+
+    $this->actingAs($user);
+
+    visit('/dashboard')
+        ->assertSee('Blue Corp')
+        ->assertSee('Red Corp')
+        ->fill('standings-search', 'blue')
+        ->assertSee('Blue Corp')
+        ->assertDontSee('Red Corp')
+        ->fill('standings-search', 'Nobody Home')
+        ->assertSee('No standings match your search.')
+        ->assertNoSmoke();
+});
+
 it('marks a character that inherits the source as inherited', function () {
     $user = User::factory()->create();
     Corporation::query()->create(['id' => 2000, 'name' => 'Source Corp', 'ticker' => 'SRCC']);

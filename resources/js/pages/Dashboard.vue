@@ -25,6 +25,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useInitials } from '@/composables/useInitials';
 import { countdown, dateWithAgo } from '@/lib/date';
@@ -34,8 +35,8 @@ import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
 import { Head, router, usePage, usePoll } from '@inertiajs/vue3';
 import { useNow } from '@vueuse/core';
-import { KeyRound, Lock, Plus, RefreshCw, Star } from '@lucide/vue';
-import { computed } from 'vue';
+import { KeyRound, Lock, Plus, RefreshCw, Search, Star } from '@lucide/vue';
+import { computed, ref } from 'vue';
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -133,9 +134,30 @@ const sortedStandings = computed(() =>
     [...(props.standings ?? [])].sort(
         (a, b) =>
             b.standing - a.standing ||
-            typeRank(a.contact_type) - typeRank(b.contact_type),
+            typeRank(a.contact_type) - typeRank(b.contact_type) ||
+            (a.name ?? `${a.contact_id}`).localeCompare(
+                b.name ?? `${b.contact_id}`,
+                undefined,
+                { sensitivity: 'base' },
+            ),
     ),
 );
+
+const standingsSearch = ref('');
+
+const filteredStandings = computed(() => {
+    const query = standingsSearch.value.trim().toLowerCase();
+
+    if (query === '') {
+        return sortedStandings.value;
+    }
+
+    return sortedStandings.value.filter((standing) =>
+        (standing.name ?? `${standing.contact_id}`)
+            .toLowerCase()
+            .includes(query),
+    );
+});
 
 function syncMyCharacters(): void {
     router.post(syncCharacters.url(), {}, { preserveScroll: true });
@@ -293,65 +315,90 @@ function optionStatusLabel(option: RequestOption): string | null {
                     >
                         No standings have been pulled from the source yet.
                     </p>
-                    <ul v-else class="-mx-2">
-                        <li
-                            v-for="standing in sortedStandings"
-                            :key="standing.contact_id"
-                            class="flex items-center gap-3 rounded-md px-2 py-1.5 transition-colors odd:bg-muted/40 hover:bg-muted"
+                    <template v-else>
+                        <div class="relative mb-3">
+                            <Search
+                                class="absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                            />
+                            <Input
+                                v-model="standingsSearch"
+                                type="search"
+                                name="standings-search"
+                                placeholder="Search standings..."
+                                aria-label="Search standings"
+                                class="pl-8"
+                            />
+                        </div>
+                        <p
+                            v-if="filteredStandings.length === 0"
+                            class="py-8 text-center text-sm text-muted-foreground"
                         >
-                            <Avatar
-                                class="h-5 w-5 shrink-0 overflow-hidden rounded-sm"
+                            No standings match your search.
+                        </p>
+                        <ul v-else class="-mx-2">
+                            <li
+                                v-for="standing in filteredStandings"
+                                :key="standing.contact_id"
+                                class="flex items-center gap-3 rounded-md px-2 py-1.5 transition-colors odd:bg-muted/40 hover:bg-muted"
                             >
-                                <AvatarImage
-                                    v-if="
-                                        eveImage(
-                                            standing.contact_type,
-                                            standing.contact_id,
-                                        )
-                                    "
-                                    :src="
-                                        eveImage(
-                                            standing.contact_type,
-                                            standing.contact_id,
-                                        )!
-                                    "
-                                    :alt="`${standing.contact_id}`"
-                                />
-                                <AvatarFallback
-                                    class="rounded-sm text-[8px] uppercase"
+                                <Avatar
+                                    class="h-5 w-5 shrink-0 overflow-hidden rounded-sm"
                                 >
-                                    {{ standing.contact_type.slice(0, 2) }}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-medium">
-                                    {{ standing.name ?? standing.contact_id }}
-                                </p>
-                                <p
-                                    v-if="standing.redundant_via"
-                                    class="truncate text-xs text-amber-600 dark:text-amber-400"
-                                    :title="`This standing already applies through the ${standing.redundant_via.contact_type} and can be removed from the source.`"
+                                    <AvatarImage
+                                        v-if="
+                                            eveImage(
+                                                standing.contact_type,
+                                                standing.contact_id,
+                                            )
+                                        "
+                                        :src="
+                                            eveImage(
+                                                standing.contact_type,
+                                                standing.contact_id,
+                                            )!
+                                        "
+                                        :alt="`${standing.contact_id}`"
+                                    />
+                                    <AvatarFallback
+                                        class="rounded-sm text-[8px] uppercase"
+                                    >
+                                        {{ standing.contact_type.slice(0, 2) }}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate text-sm font-medium">
+                                        {{
+                                            standing.name ?? standing.contact_id
+                                        }}
+                                    </p>
+                                    <p
+                                        v-if="standing.redundant_via"
+                                        class="truncate text-xs text-amber-600 dark:text-amber-400"
+                                        :title="`This standing already applies through the ${standing.redundant_via.contact_type} and can be removed from the source.`"
+                                    >
+                                        Redundant via
+                                        {{
+                                            standing.redundant_via.name ??
+                                            standing.redundant_via.contact_id
+                                        }}
+                                    </p>
+                                </div>
+                                <span
+                                    class="flex-1 truncate text-xs text-muted-foreground capitalize"
                                 >
-                                    Redundant via
-                                    {{
-                                        standing.redundant_via.name ??
-                                        standing.redundant_via.contact_id
-                                    }}
-                                </p>
-                            </div>
-                            <span
-                                class="flex-1 truncate text-xs text-muted-foreground capitalize"
-                            >
-                                {{ standing.contact_type }}
-                            </span>
-                            <span
-                                class="w-12 shrink-0 text-right text-sm font-semibold tabular-nums"
-                                :class="standingTextClass(standing.standing)"
-                            >
-                                {{ standingLabel(standing.standing) }}
-                            </span>
-                        </li>
-                    </ul>
+                                    {{ standing.contact_type }}
+                                </span>
+                                <span
+                                    class="w-12 shrink-0 text-right text-sm font-semibold tabular-nums"
+                                    :class="
+                                        standingTextClass(standing.standing)
+                                    "
+                                >
+                                    {{ standingLabel(standing.standing) }}
+                                </span>
+                            </li>
+                        </ul>
+                    </template>
                 </CardContent>
             </Card>
 
